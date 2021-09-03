@@ -35,7 +35,8 @@ class TestSubid(object):
                    subid_db):
         """
         :Title: support pluggable data sources for
-        subid ranges configurable via /etc/nsswitch.conf
+         subid ranges configurable via /etc/nsswitch.conf
+        :Customerscenario: true
         :id: 6ff93666-00c0-11ec-9be4-845cf3eff344
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1859252
         :steps:
@@ -101,7 +102,8 @@ class TestSubid(object):
                                subid_db):
         """
         :Title: support pluggable data sources for
-        subid ranges configurable via /etc/nsswitch.conf
+         subid ranges configurable via /etc/nsswitch.conf
+        :Customerscenario: true
         :id: 496e0142-00c1-11ec-8cb7-845cf3eff344
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1859252
         :steps:
