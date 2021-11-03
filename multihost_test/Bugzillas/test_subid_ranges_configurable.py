@@ -72,6 +72,7 @@ class TestSubid(object):
         # local_a+ 10131 10105 0 08:30 ? 00:00:00 bash
         # test looks for a most recent 'bash' process
         # started by user local_*
+        time.sleep(3)
         find_id = "ps -ef | grep bash | grep local_| tail -1"
         proces_id = [int(word)
                      for word in execute_cmd(multihost,
