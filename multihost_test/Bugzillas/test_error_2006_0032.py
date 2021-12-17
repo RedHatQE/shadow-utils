@@ -4,11 +4,11 @@ from __future__ import print_function
 import pytest
 
 
+@pytest.mark.tier1
 class TestShadowUtilsErrors():
     """
     Automation of Shadow Utils tests
     """
-    @pytest.mark.tier1
     def test_error_2006_0032(self, multihost):
         """
         :title: Shadow-Utils: Tests if shadow-utils are

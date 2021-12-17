@@ -20,6 +20,7 @@ subid_size = "65536"
 
 
 @pytest.mark.usefixtures('compile_list_subid_ranges')
+@pytest.mark.tier1
 class TestSubid(object):
     """
     This is for Shadow bugs automation
