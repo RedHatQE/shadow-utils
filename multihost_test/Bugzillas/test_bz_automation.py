@@ -38,10 +38,10 @@ class TestShadowBz(object):
                                "/etc/{passwd,group,"
                                "sub[ug]id,gshadow,shadow,"
                                "login.defs,default} ")
-        execute_cmd(multihost, "useradd --prefix "
-                               "/tmp/newroot --groups=wheel"
-                               " --create-home"
-                               " --password= test_user ")
+        multihost.client[0].run_command("useradd --prefix /tmp/newroot "
+                                        "--groups=wheel --create-home "
+                                        "--password= test_user",
+                                        raiseonerr=False)
         assert "/home/test_user:" \
                "/bin/bash" in \
                execute_cmd(multihost,
