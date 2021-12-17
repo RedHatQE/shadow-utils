@@ -68,7 +68,7 @@ def compile_list_subid_ranges(session_multihost, request):
     session_multihost.client[0].run_command("yum "
                                             "install -y gcc")
 
-    file_location = "multihost_test/Bugzillas/data/list_subid_ranges.c"
+    file_location = "/multihost_test/Bugzillas/data/list_subid_ranges.c"
     session_multihost.client[0].transport.put_file(os.getcwd() +
                                                    file_location,
                                                    '/tmp/list_subid_ranges.c')
