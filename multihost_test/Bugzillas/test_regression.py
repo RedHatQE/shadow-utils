@@ -5,11 +5,11 @@ import subprocess
 import pytest
 
 
+@pytest.mark.tier1
 class TestShadowUtilsRegressions():
     """
     Automation of Shadow Utils tests
     """
-    @pytest.mark.tier1_2
     def test_bz_593683(self, multihost):
         """
         :title: Shadow-Utils: useradd doesn't create
@@ -38,7 +38,6 @@ class TestShadowUtilsRegressions():
                'groups=199(shadowtestuser)' in cmd.stdout_text
         multihost.client[0].run_command("userdel -r shadowtestuser")
 
-    @pytest.mark.tier1_2
     def test_bz_639975(self, multihost):
         """
         :title: Shadow-Utils: useradd and usermod should return
