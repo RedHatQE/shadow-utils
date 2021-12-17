@@ -67,8 +67,10 @@ def compile_list_subid_ranges(session_multihost, request):
                                             "shadow-utils-*")
     session_multihost.client[0].run_command("yum "
                                             "install -y gcc")
+
+    file_location = "multihost_test/Bugzillas/data/list_subid_ranges.c"
     session_multihost.client[0].transport.put_file(os.getcwd() +
-                                                   '/data/list_subid_ranges.c',
+                                                   file_location,
                                                    '/tmp/list_subid_ranges.c')
     session_multihost.client[0].run_command("gcc /tmp/list_subid_ranges.c "
                                             "-lsubid -o  /tmp/list_subid_ranges")
