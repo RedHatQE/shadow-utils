@@ -12,7 +12,7 @@ phases:
     steps:
       - playbook: init/sssd-upstream-pytest.yaml
         extra_vars:
-          repo: https://github.com/RedHatQE/pam.git
+          repo: https://github.com/RedHatQE/shadow-utils.git
           branch: main
       - playbook: init/testrunner-dir.yaml
   - name: provision
