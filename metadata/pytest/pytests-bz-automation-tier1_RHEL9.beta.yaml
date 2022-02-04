@@ -1,0 +1,41 @@
+domains:
+  - name: testrelm.test
+    type: sssd
+    hosts:
+      - name: hostname1
+        external_hostname: hostname1
+        group: ipaclient
+        role: client
+        os: rhel-9.0
+phases:
+  - name: init
+    steps:
+      - playbook: init/sssd-upstream-pytest.yaml
+        extra_vars:
+          repo: https://github.com/RedHatQE/pam.git
+          branch: main
+      - playbook: init/testrunner-dir.yaml
+  - name: provision
+    steps:
+      - playbook: provision/mrack-up.yaml
+      - playbook: provision/wait.yaml
+  - name: prep
+    steps:
+      - playbook: prep/redhat-base.yaml
+      - playbook: prep/repos.yaml
+      - playbook: prep/set-hostname.yaml
+      - playbook: prep/enable-passwd-ssh.yaml
+      - playbook: prep/config-abrt.yaml
+  - name: test
+    steps:
+      - pytests: multihost_test/bz_automation
+        git: ../sssd
+        args: -m tier1
+        ssh_transport: openssh
+
+  - name: teardown
+    steps:
+      - playbook: teardown/check-rpm-version.yaml
+      - playbook: teardown/fetch-logs.yaml
+      - playbook: teardown/mrack-destroy.yaml
+
