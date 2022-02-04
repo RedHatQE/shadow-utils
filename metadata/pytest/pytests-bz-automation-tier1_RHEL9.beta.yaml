@@ -28,7 +28,7 @@ phases:
       - playbook: prep/config-abrt.yaml
   - name: test
     steps:
-      - pytests: multihost_test/bz_automation
+      - pytests: multihost_test/Bugzillas
         git: ../sssd
         args: -m tier1
         ssh_transport: openssh
