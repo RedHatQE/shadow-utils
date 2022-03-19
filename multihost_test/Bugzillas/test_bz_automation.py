@@ -3,6 +3,8 @@ import pytest
 import subprocess
 import os
 import time
+import paramiko
+from sssd.testlib.common.utils import SSHClient
 
 
 def execute_cmd(multihost, command):
@@ -48,3 +50,46 @@ class TestShadowBz(object):
                            "grep test_user "
                            "/tmp/newroot/etc/passwd").stdout_text
         execute_cmd(multihost, "rm -fr /tmp/newroot")
+
+    def test_read_faillock_conf_option(self, multihost, create_localuser):
+        """
+        :title: Faillock command does not read faillock.conf option
+        :id: df4ef7e0-a754-11ec-8300-845cf3eff344
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1978029
+        """
+        execute_cmd(multihost, "authselect select sssd --force")
+        execute_cmd(multihost, "authselect enable-feature with-faillock")
+        if "faillock" not in execute_cmd(multihost, "ls /var/log/").stdout_text:
+            execute_cmd(multihost, "mkdir /var/log/faillock")
+        multihost.client[0].run_command('semanage fcontext '
+                                        '-a -t faillog_t '
+                                        '"/var/log/faillock(/.*)?"',
+                                        raiseonerr=False)
+        execute_cmd(multihost, "restorecon -Rv /var/log/faillock")
+        execute_cmd(multihost, "cp -vf /etc/security/faillock.conf "
+                               "/etc/security/faillock.conf_bkp")
+        execute_cmd(multihost, "echo 'dir = /var/log/faillock' >> "
+                               "/etc/security/faillock.conf")
+        with pytest.raises(paramiko.ssh_exception.AuthenticationException):
+            SSHClient(multihost.client[0].ip, username="local_anuj",
+                      password="bad_pass")
+        #assert 'V' in execute_cmd(multihost, "faillock --user local_anuj").stdout_text
+        #execute_cmd(multihost, "faillock --user local_anuj --reset")
+        #assert 'V' not in execute_cmd(multihost, "faillock --user local_anuj").stdout_text
+        with pytest.raises(paramiko.ssh_exception.AuthenticationException):
+            SSHClient(multihost.client[0].ip, username="local_anuj",
+                      password="bad_pass")
+        assert 'V' in execute_cmd(multihost, "faillock --dir "
+                                             "/var/log/faillock "
+                                             "--user local_anuj").stdout_text
+        execute_cmd(multihost, "faillock --dir "
+                               "/var/log/faillock "
+                               "--user local_anuj --reset")
+        assert 'V' in execute_cmd(multihost, "faillock --dir "
+                                             "/var/log/faillock "
+                                             "--user local_anuj").stdout_text
+        execute_cmd(multihost, "faillock --dir "
+                               "/var/log/faillock --user "
+                               "local_anuj --reset")
+        execute_cmd(multihost, "cp -vf /etc/security/faillock.conf_bkp "
+                               "/etc/security/faillock.conf")
