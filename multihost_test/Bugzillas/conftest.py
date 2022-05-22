@@ -59,9 +59,8 @@ def compile_list_subid_ranges(session_multihost, request):
     necessary packages
     """
     session_multihost.client[0].run_command("yum "
-                                            "--enablerepo=rhel-CRB  "
-                                            "install -y "
-                                            "shadow-utils*")
+                                            "--enablerepo=*-CRB install"
+                                            " -y shadow-utils*")
     session_multihost.client[0].run_command("yum "
                                             "install -y "
                                             "shadow-utils-*")
