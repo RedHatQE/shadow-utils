@@ -48,3 +48,18 @@ class TestShadowBz(object):
                            "grep test_user "
                            "/tmp/newroot/etc/passwd").stdout_text
         execute_cmd(multihost, "rm -fr /tmp/newroot")
+
+    def test_2093311(self, multihost, create_backup, create_localuser):
+        """
+        :title: sub*id files can also contain IDs
+        :id: 80471586-122d-11ed-8890-845cf3eff344
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=2093311
+                   https://bugzilla.redhat.com/show_bug.cgi?id=2109410
+        """
+        execute_cmd(multihost, "yum install -y  podman")
+        user_uid = execute_cmd(multihost, "id local_anuj").stdout_text.split(" ")[0].split('(')[0].split("=")[1]
+        execute_cmd(multihost, f"sed -i -e 's/local_anuj/{user_uid}/g' /etc/subuid")
+        execute_cmd(multihost, f"sed -i -e 's/local_anuj/{user_uid}/g' /etc/subgid")
+        result = execute_cmd(multihost, 'su - local_anuj -c "podman run fedora cat /proc/self/uid_map"').stdout_text
+        for i in execute_cmd(multihost, f"grep {user_uid} /etc/subuid").stdout_text[:-1].split(":"):
+            assert i in result.split()
