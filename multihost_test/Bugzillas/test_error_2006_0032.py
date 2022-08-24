@@ -36,8 +36,7 @@ class TestShadowUtilsErrors():
         cmd = multihost.client[0].run_command("useradd "
                                               "joe.testing")
         assert cmd.returncode == 0
-        multihost.client[0].run_command("userdel "
-                                        "-r joe.testing")
+        multihost.client[0].run_command("userdel -rf joe.testing")
         # Added two patches to shadow-utils for
         # additional usermod flag
         multihost.client[0].run_command("useradd foo")
@@ -65,4 +64,4 @@ class TestShadowUtilsErrors():
         pass_change = multihost.client[0].run_command("chage -l foo")
         pass_change = pass_change.stdout_text.split('\n')[0].split(':')[1]
         assert pass_ch0 != pass_change
-        multihost.client[0].run_command("userdel -r foo")
+        multihost.client[0].run_command("userdel -rf foo")
