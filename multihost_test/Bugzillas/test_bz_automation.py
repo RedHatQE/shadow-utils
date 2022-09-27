@@ -120,3 +120,25 @@ class TestShadowBz(object):
         execute_cmd(multihost, f"sh /tmp/bz672510_3.sh {tuser} {tgroup}")
         execute_cmd(multihost, f"userdel -rf {tuser}")
         execute_cmd(multihost, f"groupdel  {tgroup}")
+
+    def test_bz787736(self, multihost, create_backup):
+        """
+        :title: bz787736-pwconv-grpconv-skips-2nd-of-consecutive-failures
+        :id: 017f615a-92a8-11eb-bca1-002b677efe14
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=787736
+        :steps:
+          1. If /etc/shadow (or /etc/gshadow) contains consecutive
+           bad lines pwconv only fixes the first, skipping the 2nd.
+        :expectedresults:
+          1. Should not succeed
+        """
+        execute_cmd(multihost, "echo 'example1:!!:15372:0:99999:7:::' >> /etc/shadow")
+        execute_cmd(multihost, "echo 'example2:!!:15372:0:99999:7:::' >> /etc/shadow")
+        # pwck first try should end with 2
+        # 2 means error in one or more bad password entries
+        with pytest.raises(subprocess.CalledProcessError):
+            execute_cmd(multihost, "pwck -r > /tmp/anuj")
+        assert "no matching password file entry in /etc/passwd" in \
+               execute_cmd(multihost, "cat /tmp/anuj").stdout_text
+        execute_cmd(multihost, "pwconv")
+        execute_cmd(multihost, "pwck -r")
