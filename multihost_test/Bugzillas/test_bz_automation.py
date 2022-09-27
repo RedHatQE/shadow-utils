@@ -87,7 +87,6 @@ class TestShadowBz(object):
           6. Should succeed
           7. Should succeed
         """
-        execute_cmd(multihost, 'yum install -y expect')
         tgroup = "tgroup00011"
         tuser = "tuser1"
         tuser2 = "tuser2"

@@ -27,6 +27,11 @@ def pytest_configure():
     pytest.num_others = 0
 
 
+def execute_cmd(session_multihost, command):
+    cmd = session_multihost.client[0].run_command(command)
+    return cmd
+
+
 @pytest.fixture(scope="class")
 def multihost(session_multihost, request):
     """ Multihost fixture to be used by tests """
@@ -125,3 +130,14 @@ def create_localuser(session_multihost, request):
         """ Delete local users """
         session_multihost.client[0].run_command(f"userdel -rf {user}")
     request.addfinalizer(delusers)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def setup_session(session_multihost, request):
+    """
+    Session fixture which calls fixture in order before tests run
+    :param obj session_multihost: multihost object
+    :param obj request: pytest request object
+    """
+    execute_cmd(session_multihost, "yum update -y shadow-utils")
+    execute_cmd(multihost, 'yum install -y expect')
