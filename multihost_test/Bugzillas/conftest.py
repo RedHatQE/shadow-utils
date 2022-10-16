@@ -97,21 +97,17 @@ def create_backup(session_multihost, request):
     with pytest.raises(subprocess.CalledProcessError):
         session_multihost.client[0].run_command(f"grep subid "
                                                 f"/etc/nsswitch.conf")
-    session_multihost.client[0].run_command("cp -vf  /etc/subuid "
-                                            "/tmp/subuid_bkp")
-    session_multihost.client[0].run_command("cp -vf  /etc/subgid "
-                                            "/tmp/subgid_bkp")
-    session_multihost.client[0].run_command("cp -vf  /etc/nsswitch.conf "
-                                            "/tmp/nsswitch.conf_bkp")
+    for f_file in ['subuid', 'subgid', 'nsswitch.conf', 'shadow']:
+        session_multihost.client[0].run_command(f"cp -vf  "
+                                                f"/etc/{f_file} "
+                                                f"/tmp/{f_file}_bkp")
 
     def restore():
         """ Restore files """
-        session_multihost.client[0].run_command("mv -vf  /tmp/subuid_bkp "
-                                                "/etc/subuid")
-        session_multihost.client[0].run_command("mv -vf  /tmp/subgid_bkp "
-                                                "/etc/subgid")
-        session_multihost.client[0].run_command("mv -vf  /tmp/nsswitch.conf_bkp "
-                                                "/etc/nsswitch.conf")
+        for f_file in ['subuid', 'subgid', 'nsswitch.conf', 'shadow']:
+            session_multihost.client[0].run_command(f"mv -vf  "
+                                                    f"/tmp/{f_file}_bkp "
+                                                    f"/etc/{f_file}")
     request.addfinalizer(restore)
 
 
