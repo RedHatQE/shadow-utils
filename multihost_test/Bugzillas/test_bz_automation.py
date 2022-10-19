@@ -91,10 +91,12 @@ class TestShadowBz(object):
         tuser = "tuser1"
         tuser2 = "tuser2"
         file_location = "/multihost_test/Bugzillas/data/"
-        for file in [f'{file_location}bz672510_1.sh',
-                     f'{file_location}bz672510_2.sh',
-                     f'{file_location}bz672510_3.sh']:
-            multihost.client[0].transport.put_file(os.getcwd()+f'/{file}', f'/tmp/{file}')
+        for file in ['bz672510_1.sh',
+                     'bz672510_2.sh',
+                     'bz672510_3.sh']:
+            multihost.client[0].transport.put_file(os.getcwd()+
+                                                   f'/{file_location}{file}',
+                                                   f'/tmp/{file}')
             execute_cmd(multihost, f"chmod 755 /tmp/{file}")
         # newgrp works for password protected group with correct password
         execute_cmd(multihost, f"useradd {tuser}")
@@ -141,4 +143,7 @@ class TestShadowBz(object):
         assert "no matching password file entry in /etc/passwd" in \
                execute_cmd(multihost, "cat /tmp/anuj").stdout_text
         execute_cmd(multihost, "pwconv")
-        execute_cmd(multihost, "pwck -r")
+        with pytest.raises(subprocess.CalledProcessError):
+            execute_cmd(multihost, "pwck -r > /tmp/anuj")
+        assert "no matching password file entry" not in \
+               execute_cmd(multihost, "cat /tmp/anuj").stdout_text
