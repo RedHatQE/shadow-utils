@@ -126,7 +126,7 @@ class TestShadowBz(object):
     def test_bz787736(self, multihost, create_backup):
         """
         :title: bz787736-pwconv-grpconv-skips-2nd-of-consecutive-failures
-        :id: 017f615a-92a8-11eb-bca1-002b677efe14
+        :id: 827afc78-4e23-11ed-b914-845cf3eff344
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=787736
         :steps:
           1. If /etc/shadow (or /etc/gshadow) contains consecutive
@@ -143,7 +143,65 @@ class TestShadowBz(object):
         assert "no matching password file entry in /etc/passwd" in \
                execute_cmd(multihost, "cat /tmp/anuj").stdout_text
         execute_cmd(multihost, "pwconv")
-        with pytest.raises(subprocess.CalledProcessError):
-            execute_cmd(multihost, "pwck -r > /tmp/anuj")
+<<<<<<< HEAD
+        execute_cmd(multihost, "pwck -r > /tmp/anuj")
         assert "no matching password file entry" not in \
                execute_cmd(multihost, "cat /tmp/anuj").stdout_text
+=======
+        execute_cmd(multihost, "pwck -r")
+
+    def test_bz_667593(self, multihost):
+        """
+        :title: Shadow-Utils: sg works with password
+         protected group with correct password
+        :id: 8e5d5324-4e23-11ed-95b7-845cf3eff344
+        :steps:
+          1. Add user
+          2. Add group
+          3. Add password to group
+          4. Try good password with sg
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+          3. Should succeed
+          4. Should succeed
+        """
+        # Adding user
+        execute_cmd(multihost, "useradd  tuser0011")
+        # Adding group
+        execute_cmd(multihost, "groupadd tgroup00011")
+        # script
+        file_location = "/multihost_test/Bugzillas/data/"
+        for file in [f'{file_location}bz_667593.sh',
+                     f'{file_location}bz_667593_1.sh',
+                     f'{file_location}bz_667593_2.sh',
+                     f'{file_location}bz_667593_3.sh',
+                     f'{file_location}bz_667593_3.sh']:
+            multihost.client[0].transport.put_file(os.getcwd()+f'/{file}', f'/tmp/{file}')
+            execute_cmd(multihost, f"chmod 755 /tmp/{file}")
+        # Adding password to group
+        execute_cmd(multihost, "sh /tmp/bz_667593.sh")
+        # Trying good password with sg
+        cmd = execute_cmd(multihost, "sh /tmp/bz_667593_1.sh")
+        for data_1 in ['tgroup00011', 'groups=', 'tuser0011', 'logout']:
+            assert data_1 in cmd.stdout_text
+        # Try Bad password with sg
+        # Should not succeed
+        with pytest.raises(subprocess.CalledProcessError):
+            execute_cmd(multihost, "sh /tmp/bz_667593_2.sh")
+        # Remove password from Group
+        execute_cmd(multihost, "gpasswd -r tgroup00011")
+        # Trying bad password with sg
+        with pytest.raises(subprocess.CalledProcessError):
+            execute_cmd(multihost, "sh /tmp/bz_667593_3.sh")
+        # Add user to members of group
+        execute_cmd(multihost, "gpasswd -M tuser0011 tgroup00011")
+        # Trying no password with sg
+        cmd = execute_cmd(multihost, "sh /tmp/bz_667593_4.sh")
+        execute_cmd(multihost, "groupdel tgroup00011")
+        execute_cmd(multihost, "pkill -U tuser0011 && sleep 5 || :")
+        execute_cmd(multihost, "userdel -r tuser0011")
+        execute_cmd(multihost, "rm -vf /tmp/bz_667593*")
+        for data_1 in ['tgroup00011', 'groups=', 'tuser0011', 'logout']:
+            assert data_1 in cmd.stdout_text
+>>>>>>> 22f80ad (Tests: port bz667593-sg-doesnt-work-with-password-protected-groups)
