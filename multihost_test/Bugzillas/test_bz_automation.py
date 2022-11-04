@@ -126,7 +126,7 @@ class TestShadowBz(object):
     def test_bz787736(self, multihost, create_backup):
         """
         :title: bz787736-pwconv-grpconv-skips-2nd-of-consecutive-failures
-        :id: 017f615a-92a8-11eb-bca1-002b677efe14
+        :id: 827afc78-4e23-11ed-b914-845cf3eff344
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=787736
         :steps:
           1. If /etc/shadow (or /etc/gshadow) contains consecutive
