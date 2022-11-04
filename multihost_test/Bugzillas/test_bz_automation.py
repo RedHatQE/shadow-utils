@@ -91,7 +91,7 @@ class TestShadowBz(object):
         tuser = "tuser1"
         tuser2 = "tuser2"
         file_location = "/multihost_test/Bugzillas/data/"
-        for file in ['bz672510_1.sh',
+        for file in ['add_passwod_to_group.sh',
                      'bz672510_2.sh',
                      'bz672510_3.sh']:
             multihost.client[0].transport.put_file(os.getcwd()+
@@ -102,7 +102,7 @@ class TestShadowBz(object):
         execute_cmd(multihost, f"useradd {tuser}")
         execute_cmd(multihost, f"groupadd {tgroup}")
         # Adding password to group
-        execute_cmd(multihost, f"sh /tmp/bz672510_1.sh {tgroup} {tgroup}")
+        execute_cmd(multihost, f"sh /tmp/add_passwod_to_group.sh {tgroup} {tgroup}")
         # Trying good password with newgrp
         execute_cmd(multihost, f"sh /tmp/bz672510_2.sh {tuser} {tgroup} {tgroup}")
         # newgrp doesn't work for password protected group with incorrect password
@@ -146,3 +146,57 @@ class TestShadowBz(object):
         execute_cmd(multihost, "pwck -r > /tmp/anuj")
         assert "no matching password file entry" not in \
                execute_cmd(multihost, "cat /tmp/anuj").stdout_text
+
+    def test_bz_667593(self, multihost):
+        """
+        :title: Shadow-Utils: sg works with password
+         protected group with correct password
+        :id: 8e5d5324-4e23-11ed-95b7-845cf3eff344
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=667593
+        :steps:
+          1. Add user
+          2. Add group
+          3. Add password to group
+          4. Try good password with sg
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+          3. Should succeed
+          4. Should succeed
+        """
+        # Adding user
+        execute_cmd(multihost, "useradd  tuser0011")
+        # Adding group
+        execute_cmd(multihost, "groupadd tgroup00011")
+        # script
+        file_location = "/multihost_test/Bugzillas/data/"
+        for file in [f'{file_location}bz_667593_1.sh',
+                     f'{file_location}bz_667593_4.sh',
+                     f'{file_location}add_passwod_to_group.sh']:
+            multihost.client[0].transport.put_file(os.getcwd()+f'/{file}', f'/tmp/{file}')
+            execute_cmd(multihost, f"chmod 755 /tmp/{file}")
+        # Adding password to group
+        execute_cmd(multihost, "sh /tmp/add_passwod_to_group.sh tgroup00011 Secret123")
+        # Trying good password with sg
+        cmd = execute_cmd(multihost, "sh /tmp/bz_667593_1.sh tuser0011 Secret123")
+        for data_1 in ['tgroup00011', 'groups=', 'tuser0011', 'logout']:
+            assert data_1 in cmd.stdout_text
+        # Try Bad password with sg
+        # Should not succeed
+        with pytest.raises(subprocess.CalledProcessError):
+            execute_cmd(multihost, "sh /tmp/bz_667593_1.sh tgroup00011 Badpass")
+        # Remove password from Group
+        execute_cmd(multihost, "gpasswd -r tgroup00011")
+        # Trying bad password with sg
+        with pytest.raises(subprocess.CalledProcessError):
+            execute_cmd(multihost, "sh /tmp/bz_667593_1.sh ")
+        # Add user to members of group
+        execute_cmd(multihost, "gpasswd -M tuser0011 tgroup00011")
+        # Trying no password with sg
+        cmd = execute_cmd(multihost, "sh /tmp/bz_667593_4.sh")
+        execute_cmd(multihost, "groupdel tgroup00011")
+        execute_cmd(multihost, "pkill -U tuser0011 && sleep 5 || :")
+        execute_cmd(multihost, "userdel -r tuser0011")
+        execute_cmd(multihost, "rm -vf /tmp/bz_667593*")
+        for data_1 in ['tgroup00011', 'groups=', 'tuser0011', 'logout']:
+            assert data_1 in cmd.stdout_text
