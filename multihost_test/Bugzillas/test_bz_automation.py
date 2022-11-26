@@ -170,10 +170,10 @@ class TestShadowBz(object):
         execute_cmd(multihost, "groupadd tgroup00011")
         # script
         file_location = "/multihost_test/Bugzillas/data/"
-        for file in [f'{file_location}bz_667593_1.sh',
-                     f'{file_location}bz_667593_4.sh',
-                     f'{file_location}add_passwod_to_group.sh']:
-            multihost.client[0].transport.put_file(os.getcwd()+f'/{file}', f'/tmp/{file}')
+        for file in [f'bz_667593_1.sh',
+                     f'bz_667593_4.sh',
+                     f'add_passwod_to_group.sh']:
+            multihost.client[0].transport.put_file(os.getcwd()+f'/{file_location}{file}', f'/tmp/{file}')
             execute_cmd(multihost, f"chmod 755 /tmp/{file}")
         # Adding password to group
         execute_cmd(multihost, "sh /tmp/add_passwod_to_group.sh tgroup00011 Secret123")
