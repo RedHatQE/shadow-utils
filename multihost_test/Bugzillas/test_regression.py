@@ -62,3 +62,35 @@ class TestShadowUtilsRegressions():
         multihost.client[0].run_command("userdel -rfZ user_11")
         cmd = multihost.client[0].run_command("semanage login -l")
         assert 'user_11' not in cmd.stdout_text
+
+    @pytest.mark.tier1
+    def test_bz_1220504(self, multihost):
+        """
+        :title: BZ#1220504 (usermod -p allowing colon (ie. '' ) in encrypted)
+        :id: 7d7848f8-9de1-11ed-b5f3-845cf3eff344
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1220504
+        :steps:
+          1. Create test user
+          2. Modify user password with usermod and include colon
+          3. Now see that the ':' was accepted even though it is
+            really a delimiter for the file
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+          3. Should not succeed
+        """
+        user = "bz1220504"
+        client = multihost.client[0]
+        client.run_command("cp -vf /etc/shadow /etc/shadow_anuj")
+        client.run_command(f"useradd {user}")
+        # Adding user password
+        client.run_command(f"echo password123 | passwd --stdin {user}")
+        cmd1 = client.run_command(f"grep {user} /etc/shadow")
+        with pytest.raises(subprocess.CalledProcessError):
+            client.run_command(f"usermod -p 'badPassword:123' {user}")
+        cmd2 = client.run_command(f"grep {user} /etc/shadow")
+        client.run_command(f"userdel -rf {user}")
+        client.run_command("cp -vf /etc/shadow_anuj /etc/shadow")
+        assert cmd1.returncode == 0
+        assert cmd2.returncode == 0
+        assert cmd1.stdout_text == cmd2.stdout_text
