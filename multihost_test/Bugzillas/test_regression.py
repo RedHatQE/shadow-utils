@@ -63,7 +63,6 @@ class TestShadowUtilsRegressions():
         cmd = multihost.client[0].run_command("semanage login -l")
         assert 'user_11' not in cmd.stdout_text
 
-    @pytest.mark.tier1
     def test_bz_1220504(self, multihost):
         """
         :title: BZ#1220504 (usermod -p allowing colon (ie. '' ) in encrypted)
@@ -94,3 +93,47 @@ class TestShadowUtilsRegressions():
         assert cmd1.returncode == 0
         assert cmd2.returncode == 0
         assert cmd1.stdout_text == cmd2.stdout_text
+
+    def test_bz_956742(self, multihost):
+        """
+        :title: libmisc/strtoday.c backport return -2 in case of invalid date
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=956742
+        :id: 6ec36e98-ab6d-11ed-a54b-845cf3eff344
+        :steps:
+            1. Create a new user with the username bz956742_user using the useradd command.
+            2. Get the date of tomorrow using the date command and set it as the
+                user's password expiration date using the chage command.
+            3. Check that the password expiration date was set successfully
+                by running chage -l on the user.
+            4. Try to set an invalid date using the chage -d command and check
+                that the password expiration date was not changed by running chage -l on the user.
+            5. Set a valid date in the future for the password expiration using the chage -d command.
+            6. Try to set a date in a different language using the
+                chage -d command and check the error message using chage -l.
+            7. Delete the user using the userdel command.
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+          3. Should succeed
+          4. Should succeed
+          5. Should succeed
+          6. Should succeed
+          7. Should succeed
+        """
+        user = "bz956742_user"
+        client = multihost.client[0]
+        client.run_command(f"useradd {user}")
+        date_t = client.run_command('date -d tomorrow +"%F"').stdout_text.split("\n")[0]
+        client.run_command(f"chage -d {date_t} {user}")
+        assert "Last password change" in client.run_command(f"chage -l  {user}").stdout_text
+        assert "Last password change.*never" not in client.run_command(f"chage -l  {user}").stdout_text
+        with pytest.raises(subprocess.CalledProcessError):
+            client.run_command(f"chage -d 'invalid date' {user}")
+        assert "Last password change" in client.run_command(f"chage -l  {user}").stdout_text
+        assert "Last password change.*never" not in client.run_command(f"chage -l  {user}").stdout_text
+        client.run_command(f"chage -d 'Jan 01 3000' {user}")
+        assert "Jan 01, 3000" in client.run_command(f"chage -l  {user}").stdout_text
+        with pytest.raises(subprocess.CalledProcessError):
+            client.run_command(f"LANG=c chage -d '15 märz 3013' {user}")
+        client.run_command(f"LANG=c chage -l  {user}")
+        client.run_command(f"userdel -rf {user}")
