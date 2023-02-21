@@ -137,3 +137,36 @@ class TestShadowUtilsRegressions():
             client.run_command(f"LANG=c chage -d '15 märz 3013' {user}")
         client.run_command(f"LANG=c chage -l  {user}")
         client.run_command(f"userdel -rf {user}")
+
+    def test_bz_1206273(self, multihost):
+        """
+        :title: Issue using chage command to remove account expiration date.
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1206273
+        :id: 1c2d9994-b1e2-11ed-b608-845cf3eff344
+        :steps:
+          1. Check if the account's expiration date is set to "never".
+          2. Change the account expiration date for the user to
+            never expire. The -E -1 option sets the expiration date to "never".
+          3. Search for the user stored in user in the /etc/shadow file,
+            which contains password and account expiration information for users.
+          4. Check if the account's expiration date is set to "never" again.
+            The output of the command is searched for the string "Account expires" followed by ": never".
+          5. Delete the user
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+          3. Should succeed
+          4. Should succeed
+          5. Should succeed
+        """
+        client = multihost.client[0]
+        user = "bz1206273_user"
+        client.run_command(f"useradd {user}")
+        cmd1 = client.run_command(f"chage -l {user} | grep 'Account expires.*:.*never'")
+        client.run_command(f"chage -E -1 {user}")
+        cmd2 = client.run_command(f"grep {user} /etc/shadow")
+        cmd3 = client.run_command(f"chage -l {user} | grep 'Account expires.*:.*never'")
+        client.run_command(f"userdel -rf {user}")
+        assert cmd1.returncode == 0
+        assert cmd3.returncode == 0
+        assert user in cmd2.stdout_text
