@@ -170,3 +170,32 @@ class TestShadowUtilsRegressions():
         assert cmd1.returncode == 0
         assert cmd3.returncode == 0
         assert user in cmd2.stdout_text
+
+    def test_bz_1089666(self, multihost):
+        """
+        :title: Given an existing user with no home directory, when the home directory
+            is moved to a new location, then the new directory won't be
+            created and a warning message will be printed.
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1089666
+        :id: 8cb0f63a-b80d-11ed-a4d5-845cf3eff344
+        :steps:
+          1. Create a new user on the system using the useradd command
+          2. Recursively removes the home directory of the user using rm -vfr
+          3. Modify the user's home directory using usermod, and
+            redirects any error messages to a file called /tmp/anuj.
+          4. Deletes the user and all associated files using userdel -rf
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+          3. Should succeed
+          4. Should succeed
+        """
+        client = multihost.client[0]
+        user = "bz1089666_user"
+        client.run_command(f"useradd {user}")
+        client.run_command(f"rm -vfr /home/{user}")
+        client.run_command(f"usermod -m -d '/home/bz1089666_user_2' {user} &> /tmp/anuj")
+        client.run_command(f"userdel -rf {user}")
+        assert 'Move cannot be completed.' in client.run_command("cat /tmp/anuj").stdout_text
+        with pytest.raises(subprocess.CalledProcessError):
+            client.run_command("ls  /home/bz1089666_user_2")
