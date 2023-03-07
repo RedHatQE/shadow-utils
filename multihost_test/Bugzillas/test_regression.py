@@ -199,3 +199,42 @@ class TestShadowUtilsRegressions():
         assert 'Move cannot be completed.' in client.run_command("cat /tmp/anuj").stdout_text
         with pytest.raises(subprocess.CalledProcessError):
             client.run_command("ls  /home/bz1089666_user_2")
+
+    def test_bz_1016516(self, multihost):
+        """
+        :title: usermod exits with exit status 0 even when it fails.
+        :id: 30b949b4-bca3-11ed-ba2a-845cf3eff344
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1016516
+        :steps:
+            1. A new user is created with the username "bz1016516_user" using the "useradd" command.
+            2. The code asserts that the newly created user is present in
+                the /etc/shadow file by running a "grep" command.
+            3. The next command removes the newly created user
+                from the /etc/shadow file using "sed" command.
+            4. A "pytest" test is run to raise an error if the "grep" command used
+                in step 2 is executed again and the user is found in the /etc/shadow file.
+            5. The password for the user is changed to an invalid value using the "usermod" command.
+            6. The code asserts that the user is still present in the
+                /etc/shadow file despite the invalid password.
+            7. The "userdel" command is used to remove the user account completely from the system.
+        :expectedresults:
+            1. Should succeed
+            2. Should succeed
+            3. Should succeed
+            4. Should succeed
+            5. Should succeed
+            6. Should succeed
+            7. Should succeed
+        """
+        client = multihost.client[0]
+        user = "bz1016516_user"
+        client.run_command(f"useradd {user}")
+        assert "bz1016516_user" in \
+               client.run_command("grep ^bz1016516_user /etc/shadow -E").stdout_text
+        client.run_command("sed -i -e '/^bz1016516_user:/d' /etc/shadow")
+        with pytest.raises(subprocess.CalledProcessError):
+            client.run_command("grep ^bz1016516_user /etc/shadow -E")
+        client.run_command("usermod -p 'XinvalidX' bz1016516_user")
+        assert "bz1016516_user" in \
+               client.run_command("grep ^bz1016516_user /etc/shadow -E").stdout_text
+        client.run_command(f"userdel -rf {user}")
