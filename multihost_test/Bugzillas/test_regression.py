@@ -238,3 +238,56 @@ class TestShadowUtilsRegressions():
         assert "bz1016516_user" in \
                client.run_command("grep ^bz1016516_user /etc/shadow -E").stdout_text
         client.run_command(f"userdel -rf {user}")
+
+    def test_bz_973647(self, multihost):
+        """
+        :title: Missing error message when useradd cannot create user
+            with homedir in location without default selinux context
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=973647
+        :id: 86388e92-c228-11ed-88a2-845cf3eff344
+        :steps:
+            1. Sets SELinux to enforcing mode by running the command setenforce 1.
+            2. Adds a new SELinux file context for the /althome directory and its subdirectories by
+                running the command semanage fcontext -a -t '<<none>>' '/althome(/.*)*'.
+            3. Creates the /althome directory.
+            4. Checks if the user context of /althome is "unconfined_u" by running the command
+                ls -laZ /althome and asserting that "unconfined_u" is in the output.
+            5. Checks the SELinux file context of /althome by running the command matchpathcon /althome.
+            6. Restores the default SELinux file contexts for /althome and its
+                subdirectories by running the command restorecon -Rv /althome.
+            7. Adds a new user named "hildegarda" with home directory /althome/hildegarda by
+                running the command useradd -m -d /althome/hildegarda hildegarda.
+                The command is piped to tee and grep, so that the output is both
+                displayed and checked for a specific error message.
+            8. Lists the contents of /althome and their SELinux file contexts by running the command ls -laZ /althome.
+            9. Searches for the newly added user in /etc/passwd and deletes the user by
+                running the command grep hildegarda /etc/passwd && userdel hildegarda.
+            10. Deletes the /althome directory by running the command rm -rf /althome.
+            11. Deletes the SELinux file context for /althome and its subdirectories by
+                running the command semanage fcontext -d '/althome(/.*)*'.
+        :expectedresults:
+            1. Should succeed
+            2. Should succeed
+            3. Should succeed
+            4. Should succeed
+            5. Should succeed
+            6. Should succeed
+            7. Should succeed
+            8. Should succeed
+            9. Should succeed
+            10. Should succeed
+            11. Should succeed
+        """
+        client = multihost.client[0]
+        client.run_command("setenforce 1")
+        client.run_command("semanage fcontext -a -t '<<none>>' '/althome(/.*)*'")
+        client.run_command("mkdir /althome")
+        assert "unconfined_u" in client.run_command("ls -laZ /althome").stdout_text
+        client.run_command("matchpathcon /althome")
+        client.run_command("restorecon -Rv /althome")
+        client.run_command("useradd -m -d /althome/hildegarda hildegarda"
+                           " |& tee /dev/stderr | grep 'cannot set SELinux context for home directory'")
+        client.run_command("ls -laZ /althome")
+        client.run_command("grep hildegarda /etc/passwd && userdel hildegarda")
+        client.run_command("rm -rf /althome")
+        client.run_command("semanage fcontext -d '/althome(/.*)*'")
