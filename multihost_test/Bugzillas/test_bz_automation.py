@@ -143,8 +143,7 @@ class TestShadowBz(object):
         assert "no matching password file entry in /etc/passwd" in \
                execute_cmd(multihost, "cat /tmp/anuj").stdout_text
         execute_cmd(multihost, "pwconv")
-        with pytest.raises(subprocess.CalledProcessError):
-            execute_cmd(multihost, "pwck -r > /tmp/anuj")
+        execute_cmd(multihost, "pwck -r > /tmp/anuj")
         assert "no matching password file entry" not in \
                execute_cmd(multihost, "cat /tmp/anuj").stdout_text
 
