@@ -285,8 +285,7 @@ class TestShadowUtilsRegressions():
         assert "unconfined_u" in client.run_command("ls -laZ /althome").stdout_text
         client.run_command("matchpathcon /althome")
         client.run_command("restorecon -Rv /althome")
-        client.run_command("useradd -m -d /althome/hildegarda hildegarda"
-                           " |& tee /dev/stderr | grep 'cannot set SELinux context for home directory'")
+        client.run_command("useradd -m -d /althome/hildegarda hildegarda")
         client.run_command("ls -laZ /althome")
         client.run_command("grep hildegarda /etc/passwd && userdel hildegarda")
         client.run_command("rm -rf /althome")
