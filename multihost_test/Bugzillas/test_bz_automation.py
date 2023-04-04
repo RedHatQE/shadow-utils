@@ -201,3 +201,27 @@ class TestShadowBz(object):
         execute_cmd(multihost, "rm -vf /tmp/bz_667593*")
         for data_1 in ['tgroup00011', 'groups=', 'tuser0011', 'logout']:
             assert data_1 in cmd.stdout_text
+
+    def test_bz_2012929(self, multihost, create_backup):
+        """
+        :title: Pre allocated subordinate user/group IDs don't get honored
+        :id: 1aee5474-c7a9-11ed-9638-845cf3eff344
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=2012929
+        :steps:
+          1. Manually manage the sub[ug]id ranges
+          2. Add User
+          3. Check /etc/subuid
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+          3. Useradd honors the predefined values in /etc/subuid,
+            /etc/subgid and doesn't add different values for the new created user.
+        """
+        for _ in range(2):
+            execute_cmd(multihost, "echo container:493216:65536 >> /etc/subuid")
+            execute_cmd(multihost, "echo container:493216:65536 >> /etc/subgid")
+        execute_cmd(multihost, "useradd container")
+        for f_file in ['subuid', 'subgid']:
+            assert len(execute_cmd(multihost, f"grep -c container "
+                                              f"/etc/{f_file}").stdout_text.split()) < 2
+        execute_cmd(multihost, "userdel -rf container")
