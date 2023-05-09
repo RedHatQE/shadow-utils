@@ -255,3 +255,43 @@ class TestShadowBz(object):
         execute_cmd(multihost, "cp -vf /etc/login.defs_bkp /etc/login.defs")
         for user in ["okuser", "nokuser"]:
             execute_cmd(multihost, f"userdel -rf {user}")
+
+    @pytest.mark.tier1
+    def test_bz_955769(self, multihost):
+        """
+        :title: useradd not assigning correct SELinux user to contexts of home directory files
+        :id: 76b787ce-ee52-11ed-b607-845cf3eff344
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=955769
+        :steps:
+          1. Create a new user with the username "testBZ955769" using the useradd
+          2. Then checks the security context labeling of the user's
+            home directory using the ls -Zal command
+          3. Restores the security context labeling of the user's home
+            directory using the restorecon command and checks the security
+            context labeling again using the ls -Zal
+          4. Check if the cmd and cmd1 variables are the same using an assertion statement
+          5. Delete the user and creates a new user with the same username but with a
+            different security context using the userdel and useradd commands respectively.
+          6. Repeats the process of checking and restoring the security context labeling of
+            the user's home directory and checks if the cmd1 and cmd variables are the same
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+          3. Should succeed
+          4. Should succeed
+          5. Should succeed
+          6. Should succeed
+        """
+        user = "testBZ955769"
+        execute_cmd(multihost, f"useradd {user}")
+        cmd = execute_cmd(multihost, "ls -Zal /home/testBZ955769").stdout_text
+        execute_cmd(multihost, "restorecon -RFv /home/testBZ955769")
+        cmd1 = execute_cmd(multihost, "ls -Zal /home/testBZ955769").stdout_text
+        assert cmd == cmd1
+        execute_cmd(multihost, "userdel -rfZ testBZ955769")
+        execute_cmd(multihost, "useradd -m -Z staff_u testBZ955769")
+        cmd = execute_cmd(multihost, "ls -Zal /home/testBZ955769").stdout_text
+        execute_cmd(multihost, "restorecon -RFv /home/testBZ955769")
+        cmd1 = execute_cmd(multihost, "ls -Zal /home/testBZ955769").stdout_text
+        assert cmd1 == cmd
+        execute_cmd(multihost, "userdel -rfZ testBZ955769")
