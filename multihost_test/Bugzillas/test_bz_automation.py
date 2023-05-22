@@ -192,13 +192,13 @@ class TestShadowBz(object):
           3. Useradd honors the predefined values in /etc/subuid,
             /etc/subgid and doesn't add different values for the new created user.
         """
-        for _ in range(2):
+        for _ in range(1):
             execute_cmd(multihost, "echo container:493216:65536 >> /etc/subuid")
             execute_cmd(multihost, "echo container:493216:65536 >> /etc/subgid")
         execute_cmd(multihost, "useradd container")
         for f_file in ['subuid', 'subgid']:
-            assert len(execute_cmd(multihost, f"grep -c container "
-                                              f"/etc/{f_file}").stdout_text.split()) < 2
+            assert int(execute_cmd(multihost,
+                                   f"grep -c container /etc/{f_file}").stdout_text.split()[0]) < 2
         execute_cmd(multihost, "userdel -rf container")
 
     def test_bz_1994269(self, multihost):
