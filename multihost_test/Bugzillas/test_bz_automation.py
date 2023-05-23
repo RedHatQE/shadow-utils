@@ -270,3 +270,88 @@ class TestShadowBz(object):
         cmd1 = execute_cmd(multihost, "ls -Zal /home/testBZ955769").stdout_text
         assert cmd1 == cmd
         execute_cmd(multihost, "userdel -rfZ testBZ955769")
+
+    @pytest.mark.tier1
+    def test_bz_951743(self, multihost):
+        """
+        :title: Unlock a user's password with "usermod -U" after
+            the user's password has been locked with "passwd -l"
+        :id: ba2bd37c-f927-11ed-b2bb-845cf3eff344
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=951743
+        :steps:
+            1. Create a new user with the username "bz951743" using the useradd command.
+            2. Set the password for the user "bz951743" using the passwd command with
+                the --stdin option.
+            3. Lock the user account "bz951743" using the passwd command with the -l option.
+            4. Assert that the user account "bz951743" is present and has a locked status in the /etc/shadow file.
+            5. Unlock the user account "bz951743" using the passwd command with the -u option.
+            6. Assert that the user account "bz951743" is present and has an unlocked status in
+                the /etc/shadow file.
+            7. Lock the user account "bz951743" using the passwd command with the -l option.
+            8. Assert that the user account "bz951743" is present and has a locked status in the /etc/shadow file.
+            9. Unlock the user account "bz951743" using the usermod command with the -U option.
+            10. Assert that the user account "bz951743" is present and has an unlocked status in
+                the /etc/shadow file.
+            11. Lock the user account "bz951743" using the usermod command with the -L option.
+            12. Assert that the user account "bz951743" is present and has a locked status in the /etc/shadow file.
+            13. Unlock the user account "bz951743" using the passwd command with the -u option.
+            14. Assert that the user account "bz951743" is present and has an unlocked status in
+                the /etc/shadow file.
+            15. Lock the user account "bz951743" using the usermod command with the --lock option.
+            16. Assert that the user account "bz951743" has a locked status in the /etc/shadow file.
+            17. Unlock the user account "bz951743" using the usermod command with the --unlock option.
+            18. Assert that the user account "bz951743" is present and has an unlocked
+                status in the /etc/shadow file.
+            19. Delete the user account "bz951743" and remove the user's home
+                directory and files using the userdel command with the -rf options.
+        :expectedresults:
+            1. Should succeed
+            2. Should succeed
+            3. Should succeed
+            4. Should succeed
+            5. Should succeed
+            6. Should succeed
+            7. Should succeed
+            8. Should succeed
+            9. Should succeed
+            10. Should succeed
+            11. Should succeed
+            12. Should succeed
+            13. Should succeed
+            14. Should succeed
+            15. Should succeed
+            16. Should succeed
+            17. Should succeed
+            18. Should succeed
+            19. Should succeed
+        """
+        # Lock: passwd - Unloc: passwd
+        execute_cmd(multihost, "useradd bz951743")
+        execute_cmd(multihost, "echo bz951743 | passwd --stdin bz951743")
+        execute_cmd(multihost, "passwd -l bz951743")
+        assert execute_cmd(multihost, "grep '^bz951743:!\{1,2\}\$' /etc/shadow").returncode == 0
+        assert execute_cmd(multihost, "grep '^bz951743' /etc/shadow").returncode == 0
+        execute_cmd(multihost, "passwd -u bz951743")
+        assert execute_cmd(multihost, "grep '^bz951743' /etc/shadow").returncode == 0
+        # Lock: passwd - Unloc: usermod
+        execute_cmd(multihost, "passwd -l bz951743")
+        assert execute_cmd(multihost, "grep '^bz951743:!\{1,2\}\$' /etc/shadow").returncode == 0
+        assert execute_cmd(multihost, "grep '^bz951743' /etc/shadow").returncode == 0
+        execute_cmd(multihost, "usermod -U bz951743")
+        assert execute_cmd(multihost, "grep '^bz951743:\$' /etc/shadow").returncode == 0
+        assert execute_cmd(multihost, "grep '^bz951743' /etc/shadow").returncode == 0
+        # Lock: usermod - Unloc: passwd
+        execute_cmd(multihost, "usermod -L bz951743")
+        assert execute_cmd(multihost, "grep '^bz951743:!\{1,2\}\$' /etc/shadow").returncode == 0
+        assert execute_cmd(multihost, "grep '^bz951743' /etc/shadow").returncode == 0
+        execute_cmd(multihost, "passwd -u bz951743")
+        assert execute_cmd(multihost, "grep '^bz951743:\$' /etc/shadow").returncode == 0
+        assert execute_cmd(multihost, "grep '^bz951743' /etc/shadow").returncode == 0
+        # Lock: usermod - Unloc: usermod
+        execute_cmd(multihost, "usermod --lock bz951743")
+        assert execute_cmd(multihost, "grep '^bz951743:!\{1,2\}\$' /etc/shadow").returncode == 0
+        assert execute_cmd(multihost, "grep '^bz951743' /etc/shadow").returncode == 0
+        execute_cmd(multihost, "usermod --unlock bz951743")
+        assert execute_cmd(multihost, "grep '^bz951743:\$' /etc/shadow").returncode == 0
+        assert execute_cmd(multihost, "grep '^bz951743' /etc/shadow").returncode == 0
+        execute_cmd(multihost, "userdel -rf bz951743")
