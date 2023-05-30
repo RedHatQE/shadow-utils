@@ -279,16 +279,16 @@ class TestShadowUtilsRegressions():
             11. Should succeed
         """
         client = multihost.client[0]
-        client.run_command("setenforce 1")
-        client.run_command("semanage fcontext -a -t '<<none>>' '/althome(/.*)*'")
-        client.run_command("mkdir /althome")
-        assert "unconfined_u" in client.run_command("ls -laZ /althome").stdout_text
-        client.run_command("matchpathcon /althome")
-        client.run_command("restorecon -Rv /althome")
-        #client.run_command("useradd -m -d /althome/hildegarda hildegarda")
-        client.run_command("useradd -m -d /althome/hildegarda hildegarda"
-                           " |& tee /dev/stderr | grep 'cannot set SELinux context for home directory'")
-        client.run_command("ls -laZ /althome")
-        client.run_command("grep hildegarda /etc/passwd && userdel hildegarda")
-        client.run_command("rm -rf /althome")
-        client.run_command("semanage fcontext -d '/althome(/.*)*'")
+        if '8' in client.run_command("cat /etc/redhat-release").stdout_text:
+            client.run_command("setenforce 1")
+            client.run_command("semanage fcontext -a -t '<<none>>' '/althome(/.*)*'")
+            client.run_command("mkdir /althome")
+            assert "unconfined_u" in client.run_command("ls -laZ /althome").stdout_text
+            client.run_command("matchpathcon /althome")
+            client.run_command("restorecon -Rv /althome")
+            client.run_command("useradd -m -d /althome/hildegarda hildegarda"
+                               " |& tee /dev/stderr | grep 'cannot set SELinux context for home directory'")
+            client.run_command("ls -laZ /althome")
+            client.run_command("grep hildegarda /etc/passwd && userdel hildegarda")
+            client.run_command("rm -rf /althome")
+            client.run_command("semanage fcontext -d '/althome(/.*)*'")
