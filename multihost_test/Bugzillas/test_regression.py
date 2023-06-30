@@ -3,6 +3,7 @@
 from __future__ import print_function
 import subprocess
 import pytest
+from sssd.testlib.common.ssh2_python import SSHClient
 
 
 @pytest.mark.tier1
@@ -292,3 +293,53 @@ class TestShadowUtilsRegressions():
             client.run_command("grep hildegarda /etc/passwd && userdel hildegarda")
             client.run_command("rm -rf /althome")
             client.run_command("semanage fcontext -d '/althome(/.*)*'")
+
+    def test_bz_921995(self, multihost):
+        """
+        :title: Include upstream patches to make it clear in the
+            error message why userdel wasn't able to delete an account
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=921995
+        :id: 784fae50-170a-11ee-9160-845cf3eff344
+        :steps:
+          1. Create a new user with the username specified
+          2. Sets the password for the newly created user
+          3. Check user can login
+          4. Try to delete the user created
+          5. Deletes the user forcefully, including their home
+            directory and any files owned by them.
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+          3. Should succeed
+          4. Should not succeed
+          5. Should succeed
+        """
+        user = "test921995"
+        client = multihost.client[0]
+        client.run_command(f"useradd {user}")
+        client.run_command(f"echo {user} | passwd --stdin {user}")
+        ssh = SSHClient(multihost.client[0].ip, user, 'test921995')
+        ssh.connect()
+        with pytest.raises(subprocess.CalledProcessError):
+            client.run_command(f"LANG=c userdel {user}")
+        ssh.close()
+        client.run_command(f"userdel -rfZ {user}")
+
+    def test_bz_782515(self, multihost):
+        """
+        :title: Useradd is unable to create homedir if top-level directory does not exist
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=782515
+        :id: a305c84e-1720-11ee-847e-845cf3eff344
+        :steps:
+          1. Creates a new user named "tstusr" with the home directory set
+            to /home2/tstusr2 using the useradd command.
+        :expectedresults:
+          1. Should succeed
+        """
+        temp_dir = "/home2"
+        client = multihost.client[0]
+        with pytest.raises(subprocess.CalledProcessError):
+            client.run_command(f"ls -l {temp_dir}")
+        client.run_command(f"useradd -d /home2/tstusr2 -m tstusr")
+        client.run_command(f"userdel -rf tstusr")
+        client.run_command(f"rm -vr {temp_dir}")
