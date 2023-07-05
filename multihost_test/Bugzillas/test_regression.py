@@ -340,6 +340,7 @@ class TestShadowUtilsRegressions():
         client = multihost.client[0]
         with pytest.raises(subprocess.CalledProcessError):
             client.run_command(f"ls -l {temp_dir}")
-        client.run_command(f"useradd -d /home2/tstusr2 -m tstusr")
+        with pytest.raises(subprocess.CalledProcessError):
+            client.run_command(f"useradd -d /home2/tstusr2 -m tstusr")
         client.run_command(f"userdel -rf tstusr")
         client.run_command(f"rm -vr {temp_dir}")
