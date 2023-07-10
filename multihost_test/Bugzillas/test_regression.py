@@ -344,3 +344,78 @@ class TestShadowUtilsRegressions():
             client.run_command(f"useradd -d /home2/tstusr2 -m tstusr")
         client.run_command(f"userdel -rf tstusr")
         client.run_command(f"rm -vr {temp_dir}")
+
+    def test_bz469158(self, multihost):
+        """
+        :title:Useradd does not recognize -b and --base-dir options
+        :id: 46ebb894-1edb-11ee-be06-845cf3eff344
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=469158
+        :steps:
+          1. Create the base_dir directory
+          2. Executes the useradd command with the -b option,
+            which sets the base directory for the user's home directory to base_dir
+          3. Executes the ls command with the -Z option to list the files and directories in base_dir
+            and pipes the output to grep to search for lines containing the username test_anuj.
+          4. Executes the grep command to search for the user test_anuj in the /etc/passwd file.
+          5. Forcefully remove the user test_anuj and delete their home directory.
+          6. Executes the useradd command with the --base-dir option to set the base directory for
+            the user's home directory to base_dir and creates a new user named test_anuj.
+          7.  Executes the ls command with the -Z option to list the files and directories in base_dir and
+            pipes the output to grep to search for lines containing the username test_anuj.
+          8. Executes the grep command to search for the user test_anuj in the /etc/passwd file.
+          9. Forcefully remove the user test_anuj and delete their home directory.
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+          3. Should succeed
+          4. Should succeed
+          5. Should succeed
+          6. Should succeed
+          7. Should succeed
+          8. Should succeed
+          9. Should succeed
+        """
+        base_dir = "/home/servers"
+        user = "test_anuj"
+        client = multihost.client[0]
+        client.run_command(f"mkdir {base_dir}")
+        client.run_command(f"useradd -b {base_dir} {user}")
+        client.run_command(f"ls -Z {base_dir} | grep {user}")
+        client.run_command(f"grep {user} /etc/passwd")
+        client.run_command(f"userdel -rf {user}")
+        client.run_command(f"useradd --base-dir {base_dir} {user}")
+        client.run_command(f"ls -Z {base_dir} | grep {user}")
+        client.run_command(f"grep {user} /etc/passwd")
+        client.run_command(f"userdel -rf {user}")
+
+    def test_bz461455(self, multihost):
+        """
+        :title: New users will fail with an uninformative message if the
+            new user's parent directory does not exist
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=461455
+        :id: b76aa5b0-1edd-11ee-a067-845cf3eff344
+        :steps:
+          1. Executes the ls command with the -l option to list detailed information about newusers
+          2. Constructs a string containing the user details in the format
+            "username:password:UID:GID:gecos:home_dir:shell".Pipes this string to the newusers command, which
+            reads a file in the same format and creates or modifies users accordingly.The output of the command
+            is redirected to a file "/tmp/anuj".
+          3. Checks if the string "No such file or directory" is present in the output of the cat command.
+            If not, an assertion error will be raised.
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+          3. Should succeed
+        """
+        user_name = "user0"
+        user_secret = "s3kr3d0"
+        client = multihost.client[0]
+        for file in ["/etc/group", "/etc/gshadow", "/etc/passwd", "/etc/shadow"]:
+            client.run_command(f"cp -vf {file} {file}_anuj")
+        client.run_command("ls -l /usr/sbin/newusers")
+        client.run_command("ls -l /usr/share/man/man8/newusers.8*")
+        client.run_command(f"echo \"{user_name}:{user_secret}:12345:12345::/tmp/no/such/dir/{user_name}"
+                           f":/bin/bash\" | newusers &>/tmp/anuj")
+        for file in ["/etc/group", "/etc/gshadow", "/etc/passwd", "/etc/shadow"]:
+            client.run_command(f"cp -vf {file}_anuj {file}")
+        assert "No such file or directory" in client.run_command("cat /tmp/anuj").stdout_text
