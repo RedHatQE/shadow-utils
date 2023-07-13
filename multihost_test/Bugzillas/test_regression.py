@@ -343,7 +343,10 @@ class TestShadowUtilsRegressions():
         client = multihost.client[0]
         with pytest.raises(subprocess.CalledProcessError):
             client.run_command(f"ls -l {temp_dir}")
-        with pytest.raises(subprocess.CalledProcessError):
+        if '8' in client.run_command("cat /etc/redhat-release").stdout_text:
+            with pytest.raises(subprocess.CalledProcessError):
+                client.run_command(f"useradd -d /home2/tstusr2 -m tstusr")
+        else:
             client.run_command(f"useradd -d /home2/tstusr2 -m tstusr")
         client.run_command(f"userdel -rf tstusr")
 
