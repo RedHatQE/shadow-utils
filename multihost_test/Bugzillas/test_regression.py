@@ -3,6 +3,7 @@
 from __future__ import print_function
 import subprocess
 import pytest
+from sssd.testlib.common.expect import pexpect_ssh
 from sssd.testlib.common.ssh2_python import SSHClient
 
 
@@ -318,11 +319,13 @@ class TestShadowUtilsRegressions():
         client = multihost.client[0]
         client.run_command(f"useradd {user}")
         client.run_command(f"echo {user} | passwd --stdin {user}")
-        ssh = SSHClient(multihost.client[0].ip, user, 'test921995')
-        ssh.connect()
+        client_hostip = multihost.client[0].ip
+        client1 = pexpect_ssh(client_hostip, f"{user}", 'test921995', debug=False)
+        client1.login(login_timeout=30, sync_multiplier=5,
+                      auto_prompt_reset=False)
         with pytest.raises(subprocess.CalledProcessError):
             client.run_command(f"LANG=c userdel {user}")
-        ssh.close()
+        client1.logout()
         client.run_command(f"userdel -rfZ {user}")
 
     def test_bz_782515(self, multihost):
@@ -343,7 +346,6 @@ class TestShadowUtilsRegressions():
         with pytest.raises(subprocess.CalledProcessError):
             client.run_command(f"useradd -d /home2/tstusr2 -m tstusr")
         client.run_command(f"userdel -rf tstusr")
-        client.run_command(f"rm -vr {temp_dir}")
 
     def test_bz469158(self, multihost):
         """
