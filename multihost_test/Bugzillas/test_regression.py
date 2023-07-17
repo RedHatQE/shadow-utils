@@ -3,6 +3,7 @@
 from __future__ import print_function
 import subprocess
 import pytest
+import os
 from sssd.testlib.common.expect import pexpect_ssh
 from sssd.testlib.common.ssh2_python import SSHClient
 
@@ -424,3 +425,119 @@ class TestShadowUtilsRegressions():
         for file in ["/etc/group", "/etc/gshadow", "/etc/passwd", "/etc/shadow"]:
             client.run_command(f"cp -vf {file}_anuj {file}")
         assert "No such file or directory" in client.run_command("cat /tmp/anuj").stdout_text
+
+    @pytest.mark.tier1
+    def test_bz_749205(self, multihost):
+        """
+        :title: BZ#749205 (useradd -Z ... executes /usr/sbin/semanage but)
+        :id: d2512a34-2469-11ee-a430-845cf3eff344
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=749205
+        :steps:
+          1. Creates a new user named "userBZ749205" on the system.
+          2. Copy the file "/usr/sbin/semanage" to "/usr/sbin/semanage_anuj"
+          3. Removes the "/usr/sbin/semanage" file from the system
+          4. Deletes the "userBZ749205" user from the system
+          5. Re-creates the "userBZ749205" user with the SELinux security context set to "user_u"
+          6. Deletes the "userBZ749205" user again
+          7. Copy the backup file "/usr/sbin/semanage_anuj" back to its original 
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+          3. Should succeed
+          4. Should succeed
+          5. Should succeed
+          6. Should succeed
+          7. Should succeed
+        """
+        client = multihost.client[0]
+        client.run_command("useradd userBZ749205")
+        client.run_command("cp -vf /usr/sbin/semanage /usr/sbin/semanage_anuj")
+        client.run_command("rm -rf /usr/sbin/semanage")
+        client.run_command("userdel -rfZ userBZ749205")
+        client.run_command("useradd -Z user_u userBZ749205")
+        client.run_command("userdel -rfZ userBZ749205")
+        client.run_command("cp -vf /usr/sbin/semanage_anuj /usr/sbin/semanage")
+
+    @pytest.mark.tier1
+    def test_bz723921(self, multihost):
+        """
+        :title: Checks if openssl partialy supports relro bz723921-shadow-utils-relro-support
+        :id: d87de2ee-2469-11ee-bd8a-845cf3eff344
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=723921
+        :steps:
+          1. Run rpm-chksec file in the client system
+          2. Rpm-chksec file should output desired text
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+        """
+        client = multihost.client[0]
+        client.run_command("yum install -y libcap-ng-utils")
+        file_location = "/multihost_test/Bugzillas/data/rpm-chksec"
+        multihost.client[0].transport.put_file(os.getcwd() + file_location, '/tmp/rpm-chksec')
+        client.run_command("chmod 755 /tmp/rpm-chksec")
+        cmd = client.run_command("sh /tmp/rpm-chksec shadow-utils | grep -v FILE | awk '{print $3}'").stdout_text
+        assert "no" not in cmd
+        assert "full" in cmd
+
+    @pytest.mark.tier1
+    def test_bz709605(self, multihost):
+        """
+        :title: bz709605-lock-files-are-not-deleted
+        :id: de527d88-2469-11ee-b270-845cf3eff344
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=709605
+        :steps:
+          1. Create a user named "firstuser" with a specific user ID (UID) of 800.
+          2. Create a group named "firstgroup" with a specific group ID (GID) of 900.
+          3. List files in the /etc directory matching the pattern *lock.
+          4. Attempt to create a user named "seconduser" with the same UID (800) as the previously created user.
+          5. List files in the /etc directory matching the pattern *lock.
+          6. Create a user named "seconduser" with a different UID (801).
+          7. Attempt to modify the UID of the "seconduser" to 800, which is the UID of the "firstuser".
+          8. List files in the /etc directory matching the pattern *lock.
+          9. Attempt to create a group named "secondgroup" with the same GID (900) as the previously created group.
+          10. List files in the /etc directory matching the pattern *lock.
+          11. Create a group named "secondgroup" with a different GID (901).
+          12. List files in the /etc directory matching the pattern *lock.
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+          3. Should Not succeed
+          4. Should Not succeed
+          5. Should Not succeed
+          6. Should succeed
+          7. Should Not succeed
+          8. Should Not succeed
+          9. Should Not succeed
+          10. Should Not succeed
+          11. Should succeed
+          12. Should Not succeed
+        """
+        client = multihost.client[0]
+        client.run_command("useradd -u 800 firstuser")
+        client.run_command("groupadd -g 900 firstgroup")
+        with pytest.raises(subprocess.CalledProcessError):
+            client.run_command("ls -l /etc/*lock")
+        with pytest.raises(subprocess.CalledProcessError):
+            client.run_command("useradd -u 800 seconduser")
+        with pytest.raises(subprocess.CalledProcessError):
+            client.run_command("ls -l /etc/*lock")
+        client.run_command("useradd -u 801 seconduser")
+        with pytest.raises(subprocess.CalledProcessError):
+            client.run_command("usermod -u 800 seconduser")
+        with pytest.raises(subprocess.CalledProcessError):
+            client.run_command("ls -l /etc/*lock")
+        with pytest.raises(subprocess.CalledProcessError):
+            client.run_command("groupadd -g 900 secondgroup")
+        with pytest.raises(subprocess.CalledProcessError):
+            client.run_command("ls -l /etc/*lock")
+        client.run_command("groupadd -g 901 secondgroup")
+        with pytest.raises(subprocess.CalledProcessError):
+            client.run_command("groupadd -g 900 secondgroup")
+        with pytest.raises(subprocess.CalledProcessError):
+            client.run_command("ls -l /etc/*lock")
+        for command in ["groupdel secondgroup",
+                        "groupdel firstgroup",
+                        "userdel -rf seconduser",
+                        "userdel -rf firstuser"]:
+            client.run_command(command)
