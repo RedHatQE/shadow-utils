@@ -426,7 +426,6 @@ class TestShadowUtilsRegressions():
             client.run_command(f"cp -vf {file}_anuj {file}")
         assert "No such file or directory" in client.run_command("cat /tmp/anuj").stdout_text
 
-    @pytest.mark.tier1
     def test_bz_749205(self, multihost):
         """
         :title: BZ#749205 (useradd -Z ... executes /usr/sbin/semanage but)
@@ -458,7 +457,6 @@ class TestShadowUtilsRegressions():
         client.run_command("userdel -rfZ userBZ749205")
         client.run_command("cp -vf /usr/sbin/semanage_anuj /usr/sbin/semanage")
 
-    @pytest.mark.tier1
     def test_bz723921(self, multihost):
         """
         :title: Checks if openssl partialy supports relro bz723921-shadow-utils-relro-support
@@ -480,7 +478,6 @@ class TestShadowUtilsRegressions():
         assert "no" not in cmd
         assert "full" in cmd
 
-    @pytest.mark.tier1
     def test_bz709605(self, multihost):
         """
         :title: bz709605-lock-files-are-not-deleted
