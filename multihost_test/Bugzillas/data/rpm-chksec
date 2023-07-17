@@ -1,0 +1,238 @@
+#!/bin/sh
+# rpm-chksec
+#
+# Copyright (c) 2011 Steve Grubb. ALL RIGHTS RESERVED.
+# sgrubb@redhat.com
+#
+# This software may be freely redistributed under the terms of the GNU
+# public license.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+#
+# Given an rpm, it will look at each file to check that its compiled with 
+# the intended flags to make it more secure. Things that are green are OK.
+# Anything in yellow could be better but is passable. Anything in red needs
+# attention.
+#
+# If the --all option is given, it will generate a list of rpms and then
+# summarize the rpm's state. For yes, then all files are in the expected
+# state. Just one file not compiled with the right flags can turn the
+# answer to no. Re-run passing that package (instead of --all) for the details.
+#
+# To save to file: ./rpm-chksec | sed -r "s/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g" | tee output.txt
+
+VERSION="0.4"
+
+usage () {
+	echo "rpm-chksec [--version|--all|<rpmname>...]"
+	if [ ! -x /usr/bin/filecap ] ; then
+		echo "You need to install libcap-ng-utils to test capabilities"
+	fi
+	if [ $EUID != 0 ] ; then
+		echo "You might need to be root to read some files"
+	fi
+	exit 0
+}
+
+if [ "$1" = "--help" -o $# -eq 0 ] ; then
+	usage
+fi
+if [ "$1" = "--version" ] ; then
+	echo "rpm-chksec $VERSION"
+	exit 0
+fi
+if [ "$1" = "--all" ] ; then
+	MODE="all"
+else
+	MODE="single"
+fi
+
+do_one () {
+if ! rpm -q $1 >/dev/null 2>&1 ; then
+	if [ "$MODE" = "single" ] ; then
+		echo "$1 is not installed"
+		exit 1
+	else
+		echo "not installed"
+		return
+	fi
+fi
+files=`rpm -ql $1`
+
+# Look for daemons, need this for later...
+DAEMON=""
+for f in $files
+do
+	if [ ! -f $f ] ; then
+		continue
+	fi
+	if [ `echo $f | grep '\/etc\/rc.d\/init.d'` ] ; then
+		n=`basename $f`
+	        t=`which $n 2>/dev/null`
+        	if [ x"$t" != "x" ] ; then
+                	DAEMON="$DAEMON $t"
+	                continue
+        	fi
+	        t=`which "$n"d 2>/dev/null`
+        	if [ x"$t" != "x" ] ; then
+                	DAEMON="$DAEMON $t"
+	                continue
+        	fi
+	        t=`cat $f 2>/dev/null | grep 'bin' | grep 'exit 5' | grep -v '\$'`
+        	if [ x"$t" != "x" ] ; then
+                	DAEMON="$DAEMON $t"
+	                continue
+        	fi
+		if [ "$MODE" = "single" ] ; then
+        		echo "Can't find the executable in $f but daemon rules would apply"
+		fi
+	elif [ `echo $f | grep '\/lib\/systemd\/'` ] ; then
+		t=`cat $f | grep -i '^ExecStart' | tr '=' ' ' | awk '{ print $2 }'`
+		if [ x"$t" != "x" ] ; then
+                	DAEMON="$DAEMON $t"
+	                continue
+        	fi
+	fi
+done
+
+for f in $files
+do
+	if [ ! -f $f ] ; then
+		continue
+	fi
+	if [ ! -r $f ] && [ $EUID != 0 ] ; then
+		if [ $MODE = "single" ] ; then
+			echo "Please re-test $f as the root user"
+		else
+			echo "Please re-test $1 as the root user"
+		fi
+		continue
+	fi
+	if ! file $f | grep -q 'ELF'; then
+		continue
+	fi
+	RELRO="no"
+	if readelf -l $f 2>/dev/null | grep -q 'GNU_RELRO'; then
+		RELRO="partial"
+	fi
+	if readelf -d $f 2>/dev/null | grep -q 'BIND_NOW'; then
+		RELRO="full"
+	fi
+	PIE="no"
+	if readelf -h $f 2>/dev/null | grep -q 'Type:[[:space:]]*DYN'; then
+		PIE="DSO"
+		if readelf -d $f 2>/dev/null | grep -q '(DEBUG)'; then
+			PIE="yes"
+		fi
+	fi
+	APP=""
+	if [ x"$DAEMON" != "x" ] ; then
+		for d in $DAEMON
+		do
+			if [ "$f" = "$d" ] ; then
+				APP="daemon"
+				break
+			fi
+		done
+	fi
+	if [ x"$APP" = "x" ] ; then
+		# See if this is a library or a setuid app
+		if [ `echo $f | grep '\/lib' | grep '\.so'` ] ; then
+			APP="library"
+		elif [ `find $f -perm -004000 -type f -print` ] ; then
+			APP="setuid"
+		elif [ `find $f -perm -002000 -type f -print` ] ; then
+			APP="setgid"
+		elif [ -x /usr/bin/filecap ] && [ `filecap $f | wc -w` -gt 0 ] ; then
+			APP="setcap"
+		fi
+	fi
+	if [ x"$APP" = "x" ] ; then
+		APP="exec"
+	fi
+
+	# OK, ready for the output
+	if [ "$MODE" = "single" ] ; then
+		printf "%-56s%-8s  " $f $APP
+		if [ "$APP" = "daemon" -o "$APP" = "setuid" -o "$APP" = "setgid" -o "$APP" = "setcap" ] ; then
+			if [ "$RELRO" = "full" ] ; then
+				 printf "\033[32m%-7s\033[m  " $RELRO
+			elif [ "$RELRO" = "partial" ] ; then
+				printf "\033[33m%-7s\033[m  " $RELRO
+			else
+				printf "\033[31m%-7s\033[m  " $RELRO
+			fi
+			if [ "$PIE" = "yes" ] ; then
+				printf "\033[32m%-4s\033[m" $PIE
+			else
+				printf "\033[31m%-4s\033[m" $PIE
+			fi
+		elif [ "$APP" = "library" ] ; then
+			if [ "$RELRO" = "full" -o "$RELRO" = "partial" ] ; then
+				 printf "\033[32m%-7s\033[m  " $RELRO
+			else
+				printf "\033[31m%-7s\033[m  " $RELRO
+			fi
+			printf "\033[32m%-4s\033[m" $PIE
+		elif [ "$PIE" = "yes" -a "$RELRO" != "full" ] ; then
+			printf "\033[31m%-7s\033[m  " $RELRO
+			printf "\033[32m%-4s\033[m" $PIE
+		else
+			printf "\033[32m%-7s\033[m  " $RELRO
+			printf "\033[32m%-4s\033[m" $PIE
+		fi
+		echo
+	else
+		if [ "$APP" = "daemon" -o "$APP" = "setuid" -o "$APP" = "setgid" -o "$APP" = "setcap" ] ; then
+			if [ "$RELRO" = "no" ] ; then
+				RELRO_SUM="no"
+			fi
+			if [ "$PIE" = "no" ] ; then
+				PIE_SUM="no"
+			fi
+		elif [ "$APP" = "library" ] ; then
+			if [ "$RELRO" = "no" ] ; then
+				RELRO_SUM="no"
+			fi
+		elif [ "$PIE" = "yes" -a "$RELRO" != "full" ] ; then
+			RELRO_SUM="no"
+		fi
+	fi
+done
+}
+
+if [ "$MODE" = "single" ] ; then
+	printf "%-56s%-8s  %-7s  %-4s" "FILE" "TYPE" "RELRO" "PIE"
+	echo
+	for i; do
+		do_one $1
+		shift
+	done
+	exit 0
+fi
+
+packages=`rpm -qa --queryformat "%{NAME}.%{ARCH}\n" | sort`
+printf "%-50s  %-5s  %-4s" "PACKAGE" "RELRO" "PIE"
+echo
+for p in $packages
+do
+	RELRO_SUM="yes"
+	PIE_SUM="yes"
+	printf "%-50s  " $p
+	do_one $p
+	if [ "$RELRO_SUM" = "yes" ] ; then
+		printf "\033[32m%-5s\033[m  " $RELRO_SUM
+	else
+		printf "\033[31m%-5s\033[m  " $RELRO_SUM
+	fi
+	if [ "$PIE_SUM" = "yes" ] ;then
+		printf "\033[32m%-4s\033[m" $PIE_SUM
+	else
+		printf "\033[31m%-4s\033[m" $PIE_SUM
+	fi
+	echo
+done
+exit 0
+
