@@ -538,3 +538,40 @@ class TestShadowUtilsRegressions():
                         "userdel -rf seconduser",
                         "userdel -rf firstuser"]:
             client.run_command(command)
+
+    def test_bz693377(self, multihost):
+        """
+        :title: bz693377-useradd-segfaults-when-UID_MAX-larger-than-2147483647
+        :id: 3057c3f8-29e8-11ee-81fb-845cf3eff344
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=693377
+        :steps:
+          1. Change the maximum UID setting in the login.defs file to 2147483647.
+          2. Add two new users. One of these users has a user ID specifically set to 2147483645.
+          3. A loop is then started that runs for the number of times specified in the count variable.
+            For each iteration, a new user is created with a name based on tuser and the current iteration number.
+          4. Checks that the number of users created with the base name tuser is equal to the count variable.
+          5. Checks that there are three users with UIDs in the 214748364X range.
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+          3. Should succeed
+          4. Should succeed
+          5. Should succeed
+        """
+        client = multihost.client[0]
+        loindefs = "/etc/login.defs"
+        tuser = "test1"
+        tuserf = "test2"
+        count = 10
+        client.run_command("cp -vf /etc/login.defs /etc/login.defs_anuj")
+        client.run_command(f"sed -i 's/^UID_MAX.*/UID_MAX\t2147483647/g' {loindefs}")
+        client.run_command(f"useradd {tuserf}")
+        client.run_command(f"useradd -u 2147483645 {tuser}")
+        for i in range(count):
+            client.run_command(f"useradd {tuser}_{i}")
+        assert client.run_command(f"cat /etc/passwd |  grep -c {tuser}_").stdout_text.split('\n')[0] == '10'
+        assert client.run_command('cat /etc/passwd | egrep -c "214748364[0-9]"').stdout_text.split('\n')[0] == '3'
+        for user in [tuser, tuserf]:
+            client.run_command(f"userdel -r {user}")
+        for i in range(count):
+            client.run_command(f"userdel -rf {tuser}_{i}")
