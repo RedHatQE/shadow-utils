@@ -575,3 +575,4 @@ class TestShadowUtilsRegressions():
             client.run_command(f"userdel -r {user}")
         for i in range(count):
             client.run_command(f"userdel -rf {tuser}_{i}")
+        client.run_command("mv /etc/login.defs_anuj /etc/login.defs")
