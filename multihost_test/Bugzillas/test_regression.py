@@ -564,15 +564,17 @@ class TestShadowUtilsRegressions():
         tuserf = "test2"
         count = 10
         client.run_command("cp -vf /etc/login.defs /etc/login.defs_anuj")
-        client.run_command(f"sed -i 's/^UID_MAX.*/UID_MAX\t2147483647/g' {loindefs}")
-        client.run_command(f"useradd {tuserf}")
-        client.run_command(f"useradd -u 2147483645 {tuser}")
-        for i in range(count):
-            client.run_command(f"useradd {tuser}_{i}")
-        assert client.run_command(f"cat /etc/passwd |  grep -c {tuser}_").stdout_text.split('\n')[0] == '10'
-        assert client.run_command('cat /etc/passwd | egrep -c "214748364[0-9]"').stdout_text.split('\n')[0] == '3'
-        for user in [tuser, tuserf]:
-            client.run_command(f"userdel -r {user}")
-        for i in range(count):
-            client.run_command(f"userdel -rf {tuser}_{i}")
-        client.run_command("mv /etc/login.defs_anuj /etc/login.defs")
+        try:
+            client.run_command(f"sed -i 's/^UID_MAX.*/UID_MAX\t2147483647/g' {loindefs}")
+            client.run_command(f"useradd {tuserf}")
+            client.run_command(f"useradd -u 2147483645 {tuser}")
+            for i in range(count):
+                client.run_command(f"useradd {tuser}_{i}")
+            assert client.run_command(f"cat /etc/passwd |  grep -c {tuser}_").stdout_text.split('\n')[0] == '10'
+            assert client.run_command('cat /etc/passwd | egrep -c "214748364[0-9]"').stdout_text.split('\n')[0] == '3'
+            for user in [tuser, tuserf]:
+                client.run_command(f"userdel -r {user}")
+            for i in range(count):
+                client.run_command(f"userdel -rf {tuser}_{i}")
+        except:
+            client.run_command("mv /etc/login.defs_anuj /etc/login.defs")
