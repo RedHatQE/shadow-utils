@@ -576,5 +576,11 @@ class TestShadowUtilsRegressions():
                 client.run_command(f"userdel -r {user}")
             for i in range(count):
                 client.run_command(f"userdel -rf {tuser}_{i}")
+            client.run_command("mv /etc/login.defs_anuj /etc/login.defs")
         except:
             client.run_command("mv /etc/login.defs_anuj /etc/login.defs")
+            for user in [tuser, tuserf]:
+                client.run_command(f"userdel -r {user}", raiseonerr=False)
+            for i in range(count):
+                client.run_command(f"userdel -rf {tuser}_{i}", raiseonerr=False)
+            pytest.xfail("Unable to create user.")
