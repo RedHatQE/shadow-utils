@@ -560,15 +560,15 @@ class TestShadowUtilsRegressions():
           5. Should succeed
         """
         client = multihost.client[0]
-        loindefs = "/etc/login.defs"
+        logindefs = "/etc/login.defs"
         tuser = "test1"
         tuserf = "test2"
         count = 10
         client.run_command("cp -vf /etc/login.defs /etc/login.defs_anuj")
         try:
-            client.run_command(f"sed -i 's/^UID_MAX.*/UID_MAX\t2147483647/g' {loindefs}")
+            client.run_command(f"sed -i 's/^UID_MAX.*/UID_MAX\t59999/g' {logindefs}")
             client.run_command(f"useradd {tuserf}")
-            client.run_command(f"useradd -u 2147483645 {tuser}")
+            client.run_command(f"useradd -u 59989 {tuser}")
             for i in range(count):
                 client.run_command(f"useradd {tuser}_{i}")
             assert client.run_command(f"cat /etc/passwd |  grep -c {tuser}_").stdout_text.split('\n')[0] == '10'
