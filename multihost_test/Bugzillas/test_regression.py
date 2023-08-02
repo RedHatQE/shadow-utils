@@ -470,13 +470,14 @@ class TestShadowUtilsRegressions():
           2. Should succeed
         """
         client = multihost.client[0]
-        client.run_command("yum install -y libcap-ng-utils")
-        file_location = "/multihost_test/Bugzillas/data/rpm-chksec"
-        multihost.client[0].transport.put_file(os.getcwd() + file_location, '/tmp/rpm-chksec')
-        client.run_command("chmod 755 /tmp/rpm-chksec")
-        cmd = client.run_command("sh /tmp/rpm-chksec shadow-utils | grep -v FILE | awk '{print $3}'").stdout_text
-        assert "no" not in cmd
-        assert "full" in cmd
+        if '8' not in client.run_command("cat /etc/redhat-release").stdout_text:
+            client.run_command("yum install -y libcap-ng-utils")
+            file_location = "/multihost_test/Bugzillas/data/rpm-chksec"
+            multihost.client[0].transport.put_file(os.getcwd() + file_location, '/tmp/rpm-chksec')
+            client.run_command("chmod 755 /tmp/rpm-chksec")
+            cmd = client.run_command("sh /tmp/rpm-chksec shadow-utils | grep -v FILE | awk '{print $3}'").stdout_text
+            assert "no" not in cmd
+            assert "full" in cmd
 
     def test_bz709605(self, multihost):
         """
