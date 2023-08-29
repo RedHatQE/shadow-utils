@@ -438,7 +438,7 @@ class TestShadowUtilsRegressions():
           4. Deletes the "userBZ749205" user from the system
           5. Re-creates the "userBZ749205" user with the SELinux security context set to "user_u"
           6. Deletes the "userBZ749205" user again
-          7. Copy the backup file "/usr/sbin/semanage_anuj" back to its original 
+          7. Copy the backup file "/usr/sbin/semanage_anuj" back to its original
         :expectedresults:
           1. Should succeed
           2. Should succeed
@@ -585,3 +585,46 @@ class TestShadowUtilsRegressions():
             for i in range(count):
                 client.run_command(f"userdel -rf {tuser}_{i}", raiseonerr=False)
             pytest.xfail("Unable to create user.")
+
+    @pytest.mark.tier1
+    def test_bz681020(self, multihost):
+        """
+        :title:pwconv and pwunconv alter uids over 2147483647
+        :id: 88b97d66-4630-11ee-a650-845cf3eff344
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=681020
+        :steps:
+          1. Create a new group called "bigid" with the GID (Group ID) of 3000000000.
+          2. Create a new user named "bigid" with the UID (User ID) of
+            3000000000 and associates it with the group "bigid".
+          3. Check to make sure the user "bigid" has the correct UID of 3000000000.
+          4. Check to ensure the user "bigid" has the correct primary GID of 3000000000.
+          5. Running the pwunconv command which merges the users and groups from the /etc/shadow
+            and /etc/gshadow files back into the /etc/passwd and /etc/group files.
+          6. After pwunconv, it ensures that the user "bigid" still has the correct UID and GID.
+          7. Running pwconv creates additional expiration information for the /etc/shadow file
+            from entries in your /etc/login.defs file.
+          8. After pwconv, it ensures that the user "bigid" still has the correct UID and GID.
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+          3. Should succeed
+          4. Should succeed
+          5. Should succeed
+          6. uid and gid are preserved at 3000000000
+          7. Should succeed
+          8. uid and gid are preserved at 3000000000
+        """
+        client = multihost.client[0]
+        client.run_command("cp -vf /etc/shadow /etc/shadow_anuj")
+        client.run_command("groupadd -g 3000000000 bigid" )
+        client.run_command("useradd -u 3000000000 -g bigid -c 'Big ID' bigid")
+        assert '3000000000' in client.run_command("id -u bigid | grep 3000000000").stdout_text
+        assert '3000000000' in client.run_command("id -g bigid | grep 3000000000").stdout_text
+        client.run_command("pwunconv")
+        assert '3000000000' in client.run_command("id -u bigid | grep 3000000000").stdout_text
+        assert '3000000000' in client.run_command("id -g bigid | grep 3000000000").stdout_text
+        client.run_command("pwconv")
+        assert '3000000000' in client.run_command("id -u bigid | grep 3000000000").stdout_text
+        assert '3000000000' in client.run_command("id -g bigid | grep 3000000000").stdout_text
+        client.run_command("userdel -r bigid")
+        client.run_command("cp -vf /etc/shadow_anuj /etc/shadow")
