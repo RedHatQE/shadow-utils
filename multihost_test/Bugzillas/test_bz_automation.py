@@ -177,6 +177,60 @@ class TestShadowBz(object):
         for data_1 in ['tgroup00011', 'groups=', 'tuser0011', 'logout']:
             assert data_1 in cmd.stdout_text
 
+    def test_bz_2012929(self, multihost, create_backup):
+        """
+        :title: Pre allocated subordinate user/group IDs don't get honored
+        :id: 1aee5474-c7a9-11ed-9638-845cf3eff344
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=2012929
+        :steps:
+          1. Manually manage the sub[ug]id ranges
+          2. Add User
+          3. Check /etc/subuid
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+          3. Useradd honors the predefined values in /etc/subuid,
+            /etc/subgid and doesn't add different values for the new created user.
+        """
+        for _ in range(1):
+            execute_cmd(multihost, "echo container:493216:65536 >> /etc/subuid")
+            execute_cmd(multihost, "echo container:493216:65536 >> /etc/subgid")
+        execute_cmd(multihost, "useradd container")
+        for f_file in ['subuid', 'subgid']:
+            assert int(execute_cmd(multihost,
+                                   f"grep -c container /etc/{f_file}").stdout_text.split()[0]) < 2
+        execute_cmd(multihost, "userdel -rf container")
+
+    def test_bz_1994269(self, multihost):
+        """
+        :title: Stop allocating ID 65536 (reserved) for new users/groups
+        :id: b012f94e-d73d-11ed-b7e6-845cf3eff344
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1994269
+        :steps:
+          1. Check UID_MAX value in login.def file, by default it is 60000.
+          2. Add User
+          3. Replace UID_MAX/GID_MAX value with 90000
+          4. Add another user
+          5. Users should not be created with UID 65535 (MAX_INT16)
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+          3. Should succeed
+          4. Should succeed
+          5. Users are created with UIDs starting with UID_MIN -
+            inside the pool between UID_MIN and old UID_MAX first
+        """
+        execute_cmd(multihost, "cp -vf /etc/login.defs /etc/login.defs_bkp")
+        assert "UID_MAX" and "60000" in execute_cmd(multihost, "grep UID_ /etc/login.defs").stdout_text
+        execute_cmd(multihost, "useradd okuser")
+        assert "okuser" in execute_cmd(multihost, "id okuser").stdout_text
+        execute_cmd(multihost, "sed -i 's/60000/90000/' /etc/login.defs")
+        execute_cmd(multihost, "useradd nokuser")
+        assert "uid=65535(nokuser)" not in execute_cmd(multihost, "id nokuser").stdout_text
+        execute_cmd(multihost, "cp -vf /etc/login.defs_bkp /etc/login.defs")
+        for user in ["okuser", "nokuser"]:
+            execute_cmd(multihost, f"userdel -rf {user}")
+
     @pytest.mark.tier1
     def test_bz_955769(self, multihost):
         """

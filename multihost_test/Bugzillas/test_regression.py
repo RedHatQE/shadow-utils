@@ -457,6 +457,28 @@ class TestShadowUtilsRegressions():
         client.run_command("userdel -rfZ userBZ749205")
         client.run_command("cp -vf /usr/sbin/semanage_anuj /usr/sbin/semanage")
 
+    def test_bz723921(self, multihost):
+        """
+        :title: Checks if openssl partialy supports relro bz723921-shadow-utils-relro-support
+        :id: d87de2ee-2469-11ee-bd8a-845cf3eff344
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=723921
+        :steps:
+          1. Run rpm-chksec file in the client system
+          2. Rpm-chksec file should output desired text
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+        """
+        client = multihost.client[0]
+        if '8' not in client.run_command("cat /etc/redhat-release").stdout_text:
+            client.run_command("yum install -y libcap-ng-utils")
+            file_location = "/multihost_test/Bugzillas/data/rpm-chksec"
+            multihost.client[0].transport.put_file(os.getcwd() + file_location, '/tmp/rpm-chksec')
+            client.run_command("chmod 755 /tmp/rpm-chksec")
+            cmd = client.run_command("sh /tmp/rpm-chksec shadow-utils | grep -v FILE | awk '{print $3}'").stdout_text
+            assert "no" not in cmd
+            assert "full" in cmd
+
     def test_bz709605(self, multihost):
         """
         :title: bz709605-lock-files-are-not-deleted
