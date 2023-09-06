@@ -10,6 +10,16 @@ def execute_cmd(multihost, command):
     return cmd
 
 
+def clean_up(multihost):
+    """
+    Clean up.
+    """
+    execute_cmd(multihost, "userdel -r test_anuj")
+    execute_cmd(multihost, "umount /dev/loop0")
+    execute_cmd(multihost, "losetup -d /dev/loop0")
+    execute_cmd(multihost, "rm -rf /etc/skel/suppa /etc/skel/a homedisk")
+
+
 @pytest.mark.tier1
 class TestShadowBz(object):
     def test_segmentation(self, multihost):
@@ -355,3 +365,202 @@ class TestShadowBz(object):
         assert execute_cmd(multihost, "grep '^bz951743:\$' /etc/shadow").returncode == 0
         assert execute_cmd(multihost, "grep '^bz951743' /etc/shadow").returncode == 0
         execute_cmd(multihost, "userdel -rf bz951743")
+
+    @pytest.mark.tier1
+    def test_bz690829_1(self, multihost):
+        """
+        :title: Checks if useradd is able to copy files
+            from /etc/skel also if /home not mounted with acl option.
+        :id: 5d372fe0-4c88-11ee-9152-845cf3eff344
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=690829
+        :steps:
+          1. we are expecting /home exists
+          2. create files/dirs under skel
+          3. create new user
+          4. run setfacl
+          5. check if all files are copied correctly
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+          3. Should succeed
+          4. Should raise an exception
+          5. Should succeed
+        """
+        # we are expecting /home exists
+        execute_cmd(multihost, "dd if=/dev/zero of=homedisk bs=1M count=200")
+        execute_cmd(multihost, "losetup /dev/loop0 homedisk")
+        execute_cmd(multihost, "mkfs.ext3 /dev/loop0")
+        execute_cmd(multihost, "mount -o noacl /dev/loop0 /home")
+        execute_cmd(multihost, "restorecon -RvvF /home")
+        # create files/dirs under skel
+        execute_cmd(multihost, "mkdir -p /etc/skel/a/b/c/d/e/f")
+        execute_cmd(multihost, "echo test > /etc/skel/a/b/c/d/e/f/tfile")
+        execute_cmd(multihost, "dd if=/dev/zero of=/etc/skel/a/b/c/bigfile bs=1M count=100")
+        execute_cmd(multihost, "echo selinux > /etc/skel/a/suppa")
+        execute_cmd(multihost, "chcon -t etc_t /etc/skel/a/suppa")
+        execute_cmd(multihost, "echo selinux > /etc/skel/suppa")
+        execute_cmd(multihost, "chmod 444 /etc/skel/suppa")
+        execute_cmd(multihost, "chcon -t etc_t /etc/skel/suppa")
+        # create new user
+        execute_cmd(multihost, "useradd test_anuj")
+        # check if setfacl doesn't work
+        with pytest.raises(subprocess.CalledProcessError):
+            execute_cmd(multihost, "setfacl -m u:test_anuj:rwx /home/test_anuj/suppa")
+        # check if all files copied and correctly
+        assert execute_cmd(multihost, "test -f /home/test_anuj/a/b/c/d/e/f/tfile").returncode == 0
+        assert execute_cmd(multihost, "du -hs /home/test_anuj/a/b/c/bigfile | egrep 10?M").returncode == 0
+        assert execute_cmd(multihost, "cat /home/test_anuj/a/b/c/d/e/f/tfile | grep test").returncode == 0
+        assert execute_cmd(multihost, "cat /home/test_anuj/suppa | grep selinux").returncode == 0
+        assert execute_cmd(multihost, "ls -Z /home/test_anuj/suppa | grep home_t").returncode == 0
+        assert execute_cmd(multihost, "ls -Z /home/test_anuj/a/suppa | grep home_t").returncode == 0
+        # Clean_up
+        clean_up(multihost)
+
+    @pytest.mark.tier1
+    def test_bz690829_2(self, multihost):
+        """
+        :title: Checks if useradd is able to copy files
+            from /etc/skel also if /home mounted with acl option.
+        :id: 0e706c0c-5604-11ee-8eef-845cf3eff344
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=690829
+        :steps:
+          1. we are expecting /home exists
+          2. create files/dirs under skel
+          3. create new user
+          4. run setfacl
+          5. check if all files are copied correctly
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+          3. Should succeed
+          4. Should succeed
+          5. Should succeed
+        """
+        # create test disk and mount it as home
+        execute_cmd(multihost, "dd if=/dev/zero of=homedisk bs=1M count=200")
+        execute_cmd(multihost, "losetup /dev/loop0 homedisk")
+        execute_cmd(multihost, "mkfs.ext3 /dev/loop0")
+        execute_cmd(multihost, f"mount -o acl /dev/loop0 /home")
+        execute_cmd(multihost, "restorecon -RvvF /home")
+        # create files/dirs under skel
+        execute_cmd(multihost, "mkdir -p /etc/skel/a/b/c/d/e/f")
+        execute_cmd(multihost, "echo test > /etc/skel/a/b/c/d/e/f/tfile")
+        execute_cmd(multihost, "dd if=/dev/zero of=/etc/skel/a/b/c/bigfile bs=1M count=100")
+        execute_cmd(multihost, "echo selinux > /etc/skel/a/suppa")
+        execute_cmd(multihost, "chcon -t etc_t /etc/skel/a/suppa")
+        execute_cmd(multihost, "echo selinux > /etc/skel/suppa")
+        execute_cmd(multihost, "chmod 444 /etc/skel/suppa")
+        execute_cmd(multihost, "chcon -t etc_t /etc/skel/suppa")
+        # create new user
+        execute_cmd(multihost, "useradd test_anuj")
+        # check if setfacl works
+        execute_cmd(multihost, "setfacl -m u:test_anuj:rwx /home/test_anuj/suppa")
+        # check if all files copied and correctly
+        assert execute_cmd(multihost, "test -f /home/test_anuj/a/b/c/d/e/f/tfile").returncode == 0
+        assert execute_cmd(multihost, "du -hs /home/test_anuj/a/b/c/bigfile | egrep 10?M").returncode == 0
+        assert execute_cmd(multihost, "cat /home/test_anuj/a/b/c/d/e/f/tfile | grep test").returncode == 0
+        assert execute_cmd(multihost, "cat /home/test_anuj/suppa | grep selinux").returncode == 0
+        assert execute_cmd(multihost, "ls -Z /home/test_anuj/suppa | grep home_t").returncode == 0
+        assert execute_cmd(multihost, "ls -Z /home/test_anuj/a/suppa | grep home_t").returncode == 0
+        # Clean_up
+        clean_up(multihost)
+
+    @pytest.mark.tier1
+    def test_bz690829_3(self, multihost):
+        """
+        :title: Checks if useradd is able to copy files
+            from /etc/skel also if /home not mounted with acl option.
+        :id: 17a033fc-5604-11ee-88a3-845cf3eff344
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=690829
+        :steps:
+          1. we are expecting /home exists
+          2. create files/dirs under skel
+          3. create new user
+          4. run setfacl
+          5. check if all files are copied correctly
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+          3. Should succeed
+          4. Should raise an exception
+          5. Should succeed
+        """
+        # we are expecting /home exists
+        execute_cmd(multihost, "dd if=/dev/zero of=homedisk bs=1M count=200")
+        execute_cmd(multihost, "losetup /dev/loop0 homedisk")
+        execute_cmd(multihost, "mkfs.ext3 /dev/loop0")
+        execute_cmd(multihost, "mount -o noacl /dev/loop0 /home")
+        execute_cmd(multihost, "restorecon -RvvF /home")
+        # create files/dirs under skel
+        execute_cmd(multihost, "mkdir -p /etc/skel/a/b/c/d/e/f")
+        execute_cmd(multihost, "echo test > /etc/skel/a/b/c/d/e/f/tfile")
+        execute_cmd(multihost, "dd if=/dev/zero of=/etc/skel/a/b/c/bigfile bs=1M count=100")
+        execute_cmd(multihost, "echo selinux > /etc/skel/a/suppa")
+        execute_cmd(multihost, "chcon -t etc_t /etc/skel/a/suppa")
+        execute_cmd(multihost, "echo selinux > /etc/skel/suppa")
+        execute_cmd(multihost, "chmod 444 /etc/skel/suppa")
+        execute_cmd(multihost, "chcon -t etc_t /etc/skel/suppa")
+        # create new user
+        execute_cmd(multihost, "useradd test_anuj")
+        # check if setfacl doesn't work
+        with pytest.raises(subprocess.CalledProcessError):
+            execute_cmd(multihost, "setfacl -m u:test_anuj:rwx /home/test_anuj/suppa")
+        # check if all files copied and correctly
+        assert execute_cmd(multihost, "test -f /home/test_anuj/a/b/c/d/e/f/tfile").returncode == 0
+        assert execute_cmd(multihost, "du -hs /home/test_anuj/a/b/c/bigfile | egrep 10?M").returncode == 0
+        assert execute_cmd(multihost, "cat /home/test_anuj/a/b/c/d/e/f/tfile | grep test").returncode == 0
+        assert execute_cmd(multihost, "cat /home/test_anuj/suppa | grep selinux").returncode == 0
+        assert execute_cmd(multihost, "ls -Z /home/test_anuj/suppa | grep home_t").returncode == 0
+        assert execute_cmd(multihost, "ls -Z /home/test_anuj/a/suppa | grep home_t").returncode == 0
+        # Clean_up
+        clean_up(multihost)
+
+    @pytest.mark.tier1
+    def test_bz690829_4(self, multihost):
+        """
+        :title: Checks if useradd is able to copy files
+            from /etc/skel also if /home mounted with acl option.
+        :id: 210d177a-5604-11ee-b3f3-845cf3eff344
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=690829
+        :steps:
+          1. we are expecting /home exists
+          2. create files/dirs under skel
+          3. create new user
+          4. run setfacl
+          5. check if all files are copied correctly
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+          3. Should succeed
+          4. Should succeed
+          5. Should succeed
+        """
+        # we are expecting /home exists
+        execute_cmd(multihost, "dd if=/dev/zero of=homedisk bs=1M count=200")
+        execute_cmd(multihost, "losetup /dev/loop0 homedisk")
+        execute_cmd(multihost, "mkfs.ext3 /dev/loop0")
+        execute_cmd(multihost, f"mount -o acl /dev/loop0 /home")
+        execute_cmd(multihost, "restorecon -RvvF /home")
+        # create files/dirs under skel
+        execute_cmd(multihost, "mkdir -p /etc/skel/a/b/c/d/e/f")
+        execute_cmd(multihost, "echo test > /etc/skel/a/b/c/d/e/f/tfile")
+        execute_cmd(multihost, "dd if=/dev/zero of=/etc/skel/a/b/c/bigfile bs=1M count=100")
+        execute_cmd(multihost, "echo selinux > /etc/skel/a/suppa")
+        execute_cmd(multihost, "chcon -t etc_t /etc/skel/a/suppa")
+        execute_cmd(multihost, "echo selinux > /etc/skel/suppa")
+        execute_cmd(multihost, "chmod 444 /etc/skel/suppa")
+        execute_cmd(multihost, "chcon -t etc_t /etc/skel/suppa")
+        # create new user
+        execute_cmd(multihost, "useradd test_anuj")
+        # check if setfacl doesn't work
+        execute_cmd(multihost, "setfacl -m u:test_anuj:rwx /home/test_anuj/suppa")
+        # check if all files copied and correctly
+        assert execute_cmd(multihost, "test -f /home/test_anuj/a/b/c/d/e/f/tfile").returncode == 0
+        assert execute_cmd(multihost, "du -hs /home/test_anuj/a/b/c/bigfile | egrep 10?M").returncode == 0
+        assert execute_cmd(multihost, "cat /home/test_anuj/a/b/c/d/e/f/tfile | grep test").returncode == 0
+        assert execute_cmd(multihost, "cat /home/test_anuj/suppa | grep selinux").returncode == 0
+        assert execute_cmd(multihost, "ls -Z /home/test_anuj/suppa | grep home_t").returncode == 0
+        assert execute_cmd(multihost, "ls -Z /home/test_anuj/a/suppa | grep home_t").returncode == 0
+        assert '-r--rwxr--+' in execute_cmd(multihost, "ls -l /home/test_anuj/suppa").stdout_text
+        # Clean_up
+        clean_up(multihost)
