@@ -97,14 +97,26 @@ def create_backup(session_multihost, request):
     with pytest.raises(subprocess.CalledProcessError):
         session_multihost.client[0].run_command(f"grep subid "
                                                 f"/etc/nsswitch.conf")
-    for f_file in ['subuid', 'subgid', 'nsswitch.conf', 'shadow']:
+    for f_file in ['subuid',
+                   'subgid',
+                   'nsswitch.conf',
+                   'shadow',
+                   'group',
+                   'gshadow',
+                   'passwd']:
         session_multihost.client[0].run_command(f"cp -vf  "
                                                 f"/etc/{f_file} "
                                                 f"/tmp/{f_file}_bkp")
 
     def restore():
         """ Restore files """
-        for f_file in ['subuid', 'subgid', 'nsswitch.conf', 'shadow']:
+        for f_file in ['subuid',
+                       'subgid',
+                       'nsswitch.conf',
+                       'shadow',
+                       'group',
+                       'gshadow',
+                       'passwd']:
             session_multihost.client[0].run_command(f"mv -vf  "
                                                     f"/tmp/{f_file}_bkp "
                                                     f"/etc/{f_file}")

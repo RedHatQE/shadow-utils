@@ -628,3 +628,64 @@ class TestShadowUtilsRegressions():
         assert '3000000000' in client.run_command("id -g bigid | grep 3000000000").stdout_text
         client.run_command("userdel -r bigid")
         client.run_command("cp -vf /etc/shadow_anuj /etc/shadow")
+
+    @pytest.mark.tier1
+    def test_bz469158(self, multihost):
+        """
+        :title:bz469158 useradd does not recognize -b and --base-dir options
+        :id: 773e7702-5c34-11ee-9186-845cf3eff344
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=469158
+        :steps:
+          1. Creates a directory
+          2. Adds a user with its home directory inside the created directory
+          3. Checks if the home directory exists with the correct SELinux context
+            and if the user was added to the system
+          4. Deletes the user
+          5. Repeats the user creation and checks
+          6. Deletes the user again
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+          3. Should succeed
+          4. Should succeed
+          5. Should succeed
+          6. Should succeed
+        """
+        client = multihost.client[0]
+        base_dir = "/home/servers"
+        user = "test_anuj"
+        client.run_command(f"mkdir {base_dir}")
+        client.run_command(f"useradd -b {base_dir} {user}")
+        client.run_command(f"ls -Z {base_dir} | grep {user}")
+        client.run_command(f"grep {user} /etc/passwd")
+        client.run_command(f"userdel -rf {user}")
+        client.run_command(f"useradd --base-dir {base_dir} {user}")
+        client.run_command(f"ls -Z {base_dir} | grep {user}")
+        client.run_command(f"grep {user} /etc/passwd")
+        client.run_command(f"userdel -rf {user}")
+
+    @pytest.mark.tier1
+    def test_bz461455(self, multihost, create_backup):
+        """
+        :title:bz461455 new users fails with an obscure message when parent directory does not exist
+        :id: 7ee888f8-5c34-11ee-b760-845cf3eff344
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=461455
+        :steps:
+          1. Checks the existence of the newusers executable and its manual pages.
+          2. Tries to create a user with a non-existent home directory.
+          3. Verifies the expected error message was generated.
+          4. Restores the previously backed-up files.
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+          3. Should succeed
+          4. Should succeed
+        """
+        client = multihost.client[0]
+        user_name = "user0"
+        user_secret = "s3kr3d0"
+        client.run_command("ls -l /usr/sbin/newusers")
+        client.run_command("ls -l /usr/share/man/man8/newusers.8*")
+        client.run_command(f"echo \"{user_name}:{user_secret}:12345:12345:"
+                           f":/tmp/no/such/dir/{user_name}:/bin/bash\" | newusers &>/tmp/anuj")
+        assert "No such file or directory" in client.run_command("cat /tmp/anuj").stdout_text
