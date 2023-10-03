@@ -689,3 +689,49 @@ class TestShadowUtilsRegressions():
         client.run_command(f"echo \"{user_name}:{user_secret}:12345:12345:"
                            f":/tmp/no/such/dir/{user_name}:/bin/bash\" | newusers &>/tmp/anuj")
         assert "No such file or directory" in client.run_command("cat /tmp/anuj").stdout_text
+
+    @pytest.mark.tier1
+    def test_bz513055(self, multihost):
+        """
+        :title: Useradd does not preserve ACLs under /etc/skel when creating an user
+        :id: db88c706-61b3-11ee-b15f-845cf3eff344
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=513055
+        :steps:
+          1. Lists the directory attributes of /etc/skel, which is the directory used to
+            populate a home directory when you add a new user.
+          2. Writes the current date to a new file named testfile in the /etc/skel directory.
+          3. Lists the attributes of the testfile just created.
+          4.Sets an ACL on testfile to grant read-only access specifically to the root user.
+          5. Gets the ACL for testfile and the output is stored in the
+            cmd1 variable after filtering out comment lines (those starting with a #).
+          6. Creates a new user named test_anuj and the -m flag ensures a home directory is created for the user.
+          7. Lists the attributes of the testfile within the home directory of the newly created user.
+            This file exists because of the default files in /etc/skel that get copied to a new user's home directory upon creation.
+          8. Gets the ACL for testfile in test_anuj's home directory and the output is stored
+            in the cmd2 variable after filtering out comment lines.
+          9. Deletes the test_anuj user along with its home directory.
+          10. Removes the testfile from the /etc/skel directory.
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+          3. Should succeed
+          4. Should succeed
+          5. Should succeed
+          6. Should succeed
+          7. Should succeed
+          8. Should succeed
+          9. Should succeed
+          10. Should succeed
+        """
+        client = multihost.client[0]
+        client.run_command("ls -ld /etc/skel")
+        client.run_command("date > /etc/skel/testfile")
+        client.run_command("ls -l /etc/skel/testfile")
+        client.run_command("setfacl -m u:root:r /etc/skel/testfile")
+        cmd1 = client.run_command("getfacl /etc/skel/testfile | grep -v ^#").stdout_text
+        client.run_command("useradd -m test_anuj")
+        client.run_command("ls -l /home/test_anuj/testfile")
+        cmd2 = client.run_command("getfacl /home/test_anuj/testfile | grep -v ^#").stdout_text
+        client.run_command("userdel -rf test_anuj")
+        client.run_command("rm -f /etc/skel/testfile")
+        assert cmd1 == cmd2
