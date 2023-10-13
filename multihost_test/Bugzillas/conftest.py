@@ -150,4 +150,5 @@ def setup_session(session_multihost, request):
     execute_cmd(session_multihost, "yum update -y shadow-utils")
     execute_cmd(session_multihost, 'yum install -y expect')
     #execute_cmd(session_multihost, 'yum install -y libeconf*')
-    execute_cmd(session_multihost, "yum install -y gfs2-utils")
+    execute_cmd(session_multihost, "dnf --enablerepo=resilientstorage install gfs2-utils")
+    #execute_cmd(session_multihost, "yum install -y gfs2-utils")
