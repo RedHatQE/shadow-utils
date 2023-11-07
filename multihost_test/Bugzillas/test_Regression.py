@@ -102,3 +102,59 @@ class TestShadowUtilsRegression():
         execute_cmd(multihost, "userdel -rf test_anuj")
         execute_cmd(multihost, "rm -rf /home/test_anuj-2")
         assert 'restorecon' not in cmd
+
+    @pytest.mark.tier2
+    def test_bz487575(self, multihost, create_backup):
+        """
+        :title:bz487575 useradd does not clear errno prior to checking what function returns
+        :id: a0d1bdce-7d20-11ee-b8f8-845cf3eff344
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=487575
+        :steps:
+          1. Install the nscd package using yum and then restarts the nscd service to apply changes.
+          2. Backup of the nscd cache directory
+          3. Check if the nscd is configured to enable caching for the "group" service.
+          4. Create a new group with the specified group ID and name.
+          5. Iterates through a range of user IDs (min_uid to max_uid) and
+            creates new user account entries in the /tmp/newusers.txt file using the useradd command.
+            These users have home directories under /home and use /bin/bash as their shell.
+          6. Create the new user accounts by reading from the /tmp/newusers.txt file.
+          7. Add a user with a fixed user ID (nextuser_id) and checks whether the user was created successfully
+            by inspecting the output of the useradd and userdel commands.
+            It appears to assert that certain error messages are not present in the output.
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+          3. Should succeed
+          4. Should succeed
+          5. Should succeed
+          6. Should succeed
+          7. Should succeed
+        """
+        nsd_conf = "/etc/nscd.conf"
+        nextuser_id = 16
+        gid = 600
+        group_name = "mybiggroup"
+        min_uid = 1000
+        max_uid = 2600
+        execute_cmd(multihost, "yum install -y nscd")
+        execute_cmd(multihost, "systemctl restart nscd")
+        execute_cmd(multihost, "cp -vfr /var/db/nscd /var/db/nscd_anuj")
+        execute_cmd(multihost, f"grep -i 'enable-cache.*group.*yes' {nsd_conf}")
+        execute_cmd(multihost, f"groupadd -g {gid} {group_name}")
+        for i in range(min_uid, max_uid):
+            execute_cmd(multihost, f'echo "bz487575dummy{i}:x:{i}:{group_name}::/home/bz487575dummy{i}:/bin/bash"'
+                                   f' >> /tmp/newusers.txt')
+        execute_cmd(multihost, "newusers /tmp/newusers.txt")
+        execute_cmd(multihost, f"useradd -u {nextuser_id} nextuser >& /tmp/anuj1")
+        assert 'invalid' not in execute_cmd(multihost, "cat /tmp/anuj1").stdout_text
+        execute_cmd(multihost, "userdel -r nextuser >& /tmp/anuj1")
+        assert 'not exist' not in execute_cmd(multihost, "cat /tmp/anuj1").stdout_text
+        execute_cmd(multihost, "systemctl stop nscd")
+        for user_name in [user_name.split(":")[0] for
+                          user_name in execute_cmd(multihost,
+                                                   "cat /tmp/newusers.txt").stdout_text.split("\n")]:
+            if user_name != '':
+                execute_cmd(multihost, f"userdel -rf {user_name}")
+        execute_cmd(multihost, "cp -vfr /var/db/nscd_anuj /var/db/nscd")
+        execute_cmd(multihost, "rm -rf /home/bz487575dummy*")
+        execute_cmd(multihost, "rm -rf /tmp/newusers.txt")
