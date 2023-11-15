@@ -158,3 +158,67 @@ class TestShadowUtilsRegression():
         execute_cmd(multihost, "cp -vfr /var/db/nscd_anuj /var/db/nscd")
         execute_cmd(multihost, "rm -rf /home/bz487575dummy*")
         execute_cmd(multihost, "rm -rf /tmp/newusers.txt")
+
+    @pytest.mark.tier1
+    def test_bz218629(self, multihost):
+        """
+        :title:Make sure MD5 encryption is used by default
+        :id: bbd63966-83b4-11ee-b46e-845cf3eff344
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=218629
+        :steps:
+          1. Check if MD5 password encryption is enabled in the /etc/login.defs file.
+          2. Create a new user (bz218629) with a specified password, UID (600), GID (600),
+            and default shell (/bin/bash).
+          3. Retrieve the password information for the user bz218629 from the /etc/shadow file.
+          4. Check if the hashed password in the /etc/shadow file starts with either "$6$"
+            (indicating SHA-512 encryption) or "$1$" (indicating MD5 encryption). If not,
+            the script will raise an AssertionError.
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+          3. Should succeed
+          4. Should succeed
+        """
+        client = multihost.client[0]
+        client.run_command("grep -q MD5_CRYPT_ENAB /etc/login.defs")
+        client.run_command('echo "bz218629:password:600:600:::/bin/bash" | newusers || exit 1')
+        password = client.run_command("grep bz218629 /etc/shadow").stdout_text
+        client.run_command("userdel bz218629")
+        assert password.split(":")[1].startswith("$6$") or password.split(":")[1].startswith("$1$")
+
+    @pytest.mark.tier1
+    def test_bz240915(self, multihost, create_backup):
+        """
+        :title:userdel/usermod infinite loop with duplicate names in /etc/group or /etc/gshadow
+        :id: c1eca5b0-83b4-11ee-9026-845cf3eff344
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=240915
+        :steps:
+          1. Append a new group entry (badgroup) to the /etc/group file.
+          2. Append another group entry (badgroup) to the /etc/group file,
+            including the user deleteme in the group.
+          3. Loop attempts to delete the user deleteme using the userdel -rf
+            command three times. It uses pytest.raises to check if an exception is
+            raised during the deletion process. If an exception occurs.
+          4. Remove the home directory of the user deleteme.
+          5. Removes lock files associated with group-related operations.
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+          3. Should succeed
+          4. Should succeed
+          5. Should succeed
+        """
+        client = multihost.client[0]
+        client.run_command("echo 'badgroup:x:30266:root' >> /etc/group")
+        client.run_command("echo 'badgroup::30266:root,deleteme' >> /etc/group")
+        client.run_command("useradd deleteme")
+        for _ in range(3):
+            with pytest.raises(Exception):
+                client.run_command("userdel -rf deleteme")
+        client.run_command("rm -rf /home/deleteme")
+        client.run_command("rm -f /etc/group.lock "
+                           "/etc/gshadow.lock "
+                           "/etc/passwd.lock "
+                           "/etc/shadow.lock "
+                           "/etc/subuid.lock "
+                           "/etc/subgid.lock")
