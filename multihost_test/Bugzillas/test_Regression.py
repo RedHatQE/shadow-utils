@@ -158,3 +158,29 @@ class TestShadowUtilsRegression():
         execute_cmd(multihost, "cp -vfr /var/db/nscd_anuj /var/db/nscd")
         execute_cmd(multihost, "rm -rf /home/bz487575dummy*")
         execute_cmd(multihost, "rm -rf /tmp/newusers.txt")
+
+    def test_chpasswd(self, multihost):
+        """
+        :title: The value and format of salt in /etc/shadow is incorrect when chpasswd
+        :id: c7415312-85f8-11ee-b721-845cf3eff344
+        :bugzilla: https://issues.redhat.com/browse/RHEL-16668
+        :steps:
+          1. Add users.
+          2. Sets their passwords using the chpasswd command
+          3. Retrieve the contents of the /etc/shadow file
+          4. Asserts that the string "rounds" is not present in the result.
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+          3. Should succeed
+          4. Should succeed
+        """
+        client = multihost.client[0]
+        password = "Secret123"
+        for no_no in range(1, 3):
+            client.run_command(f"useradd local_anuj{no_no}")
+            client.run_command(f"echo local_anuj{no_no}:{password} | chpasswd")
+        result = client.run_command("getent shadow").stdout_text
+        for no_no in range(1, 3):
+            client.run_command(f"userdel -rf local_anuj{no_no}")
+        assert "rounds" not in result
