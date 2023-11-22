@@ -54,9 +54,9 @@ class TestShadowUtilsRegression():
         execute_cmd(multihost, "cat /etc/group > /tmp/anuj")
         execute_cmd(multihost, "grep group_ /tmp/anuj >> /etc/group")
         assert execute_cmd(multihost, "grep group_ /etc/group | wc -l").stdout_text.split('\n')[0] == '20'
-        execute_cmd(multihost, "grpconv")
         with pytest.raises(subprocess.CalledProcessError):
-            execute_cmd(multihost, "echo -e 'y\ny\ny\ny\ny\ny\ny\ny\ny\ny\n' | grpck")
+            execute_cmd(multihost, "grpconv")
+        execute_cmd(multihost, "echo -e 'y\ny\ny\ny\ny\ny\ny\ny\ny\ny\n' | grpck")
         for i in range(10):
             execute_cmd(multihost, f"groupdel group_{i}")
 
