@@ -185,3 +185,41 @@ class TestShadowUtilsRegression():
         for no_no in range(1, 3):
             client.run_command(f"userdel -rf local_anuj{no_no}")
         assert "rounds" not in result
+
+    @pytest.mark.tier1
+    def test_bz1315007(self, multihost):
+        """
+        :title: /etc/shadow- is created by useradd with mode 0000
+        :id: 63b4cf58-8dbf-11ee-b0b4-845cf3eff344
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1315007
+        :steps:
+            1. Adds a new user "bz1315007_1" on the client.
+            2. Checks the permissions of /etc/shadow and /etc/shadow- file.
+            3. Checks the security context of /etc/shadow and /etc/shadow- file.
+            4. Removes the /etc/shadow- file.
+            5. Adds a new user "bz1315007_2".
+            6. Repeats steps 2-4 for the new user.
+            7. Removes both users "bz1315007_1" and "bz1315007_2".
+        :expectedresults:
+            1. Should succeed
+            2. Permission should be 0000
+            3. Security contexts should be system_u:object_r:shadow_t:s0
+            4. File should be removed
+            5. User should be added
+            6. Should be success when repeated
+            7. User should be removed
+        """
+        client = multihost.client[0]
+        client.run_command("useradd bz1315007_1")
+        client.run_command("stat -c%a /etc/shadow |grep ^0$")
+        client.run_command("stat -c%a /etc/shadow- |grep ^0$")
+        client.run_command("ls -Z /etc/shadow | grep `matchpathcon -n /etc/shadow`")
+        client.run_command("ls -Z /etc/shadow- | grep `matchpathcon -n /etc/shadow-`")
+        client.run_command("rm -f /etc/shadow-")
+        client.run_command("useradd bz1315007_2")
+        client.run_command("stat -c%a /etc/shadow |grep ^0$")
+        client.run_command("stat -c%a /etc/shadow- |grep ^0$")
+        client.run_command("ls -Z /etc/shadow | grep `matchpathcon -n /etc/shadow`")
+        client.run_command("ls -Z /etc/shadow- | grep `matchpathcon -n /etc/shadow-`")
+        client.run_command("userdel -fr bz1315007_1")
+        client.run_command("userdel -fr bz1315007_2")
