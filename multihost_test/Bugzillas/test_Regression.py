@@ -223,3 +223,46 @@ class TestShadowUtilsRegression():
         client.run_command("ls -Z /etc/shadow- | grep `matchpathcon -n /etc/shadow-`")
         client.run_command("userdel -fr bz1315007_1")
         client.run_command("userdel -fr bz1315007_2")
+
+    @pytest.mark.tier1
+    def test_bz455603(self, multihost, create_backup):
+        """
+        :title: groupmems does not check input strings for special characters
+        :id: d4f84f78-995e-11ee-aaf0-845cf3eff344
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=455603
+        :steps:
+          1. Create two users (tu01 and tu02) and a test group (tg01)
+          2. Check if the group has been successfully created by
+            searching for its entry in the /etc/group file.
+          3. Check whether the group membership command (groupmems) raises
+            an exception when attempting to add users to the group  as groupmems should not
+            accept string with ':' as a username
+          4. check if the group entry is still present in the /etc/group file after
+            the failed group membership attempt.
+          5. Check if an exception is raised when searching for the group
+            entry with specific user memberships.
+          6. Cleanup
+        :expectedresults:
+          1. User group creation Should succeed
+          2. Search Should succeed
+          3. Groupmems should reject string with ':' as a username
+          4. Entry should still present in the /etc/group
+          5. Exception should rise
+          6. Cleanup Should succeed
+        """
+        client = multihost.client[0]
+        first_user = "tu01"
+        second_user = "tu02"
+        test_group = "tg01"
+        client.run_command(f"useradd {first_user}")
+        client.run_command(f"useradd {second_user}")
+        client.run_command(f"groupadd {test_group}")
+        client.run_command(f'grep "^{test_group}:" /etc/group')
+        with pytest.raises(Exception):
+            client.run_command(f'groupmems -a "{first_user}:{second_user}" -g {test_group}')
+        client.run_command(f'grep "^{test_group}:" /etc/group')
+        with pytest.raises(Exception):
+            client.run_command(f'grep "^{test_group}:.*:{first_user}:{second_user}" /etc/group >& /dev/null')
+        client.run_command(f'groupdel {test_group}')
+        client.run_command(f'userdel -r {first_user}')
+        client.run_command(f'userdel -r {second_user}')
