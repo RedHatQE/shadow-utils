@@ -266,3 +266,142 @@ class TestShadowUtilsRegression():
         client.run_command(f'groupdel {test_group}')
         client.run_command(f'userdel -r {first_user}')
         client.run_command(f'userdel -r {second_user}')
+
+    @pytest.mark.tier1
+    def test_bz306241(self, multihost, create_backup):
+        """
+        :title: newusers creates users with negative UID and GID
+        :id: 06e1072a-f0c9-11ee-9905-845cf3eff344
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=306241
+        :steps:
+          1. Generates user entries and appends them to the specified input file.
+            It iterates five times, creating five different user entries.
+          2. Pipe the contents of the input file into the newusers command,
+            which adds multiple users to the system in a single batch operation.
+          3. Checks if the user entries have been successfully added to the `/etc/passwd` file.
+          4. Loop iterate over each user entry and perform tests to ensure that the user IDs (UIDs)
+            and group IDs (GIDs) are greater than or equal to 500.
+          5. Loops iterate over each user entry and delete the corresponding user accounts
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+          3. Should succeed
+          4. Should succeed
+          5. Should succeed
+        """
+        client = multihost.client[0]
+        user_name = "user101"
+        user_secret = "Secret123"
+        input_file = "/tmp/anuj"
+        assert client.run_command("ls /usr/sbin/newusers")
+        for i in range(5):
+            client.run_command(f"echo \"{user_name}{i}:{user_secret}::::/home/{user_name}{i}:/bin/bash\" "
+                               f">> {input_file}")
+        client.run_command(f"cat {input_file} | newusers")
+        client.run_command(f"grep {user_name} /etc/passwd")
+        for i in range(5):
+            client.run_command(f"test `grep {user_name}{i} /etc/passwd | cut -d ':' -f 3` -ge 500")
+            client.run_command(f"test `grep {user_name}{i} /etc/passwd | cut -d ':' -f 4` -ge 500")
+        for i in range(5):
+            client.run_command(f"userdel -r {user_name}{i}")
+        client.run_command("rm -vf /tmp/anuj")
+
+    @pytest.mark.tier1
+    def test_bz455609(self, multihost, create_backup):
+        """
+        :title: groupmems -d does not work
+        :id: 0d62b45e-f0c9-11ee-b808-845cf3eff344
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=455609
+        :steps:
+          1. Add a test user to the system.
+          2. Add a test group to the system.
+          3. Add the test user to the test group.
+          4. Check if the test group exists in `/etc/group`.
+          5. Checks if the test user is a member of the test group.
+          6. Remove the test user from the test group.
+          7. Check if the test group still exists after removing the user.
+          8. Checks if the test user is still a member of the test group.
+          9. Delete the test group
+          10. Delete the test user along with their home directory
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+          3. Should succeed
+          4. Should succeed
+          5. Should succeed
+          6. Should succeed
+          7. Should succeed
+          8. Should succeed
+          9. Should succeed
+          10. Should succeed
+        """
+        client = multihost.client[0]
+        test_user = "tu1"
+        test_group = "tg1"
+        client.run_command(f'useradd {test_user}')
+        client.run_command(f'groupadd {test_group}')
+        client.run_command(f'groupmems -a {test_user} -g {test_group}')
+        client.run_command(f'grep "^{test_group}:" /etc/group')
+        client.run_command(f'grep "^{test_group}:" /etc/group | grep ":{test_user}$" >& /dev/null')
+        client.run_command(f'groupmems -d {test_user} -g {test_group}')
+        client.run_command(f'grep "^{test_group}:" /etc/group')
+        with pytest.raises(Exception):
+            client.run_command(f'grep "^{test_group}:" /etc/group | grep ":{test_user}$" >& /dev/null')
+        client.run_command(f'groupdel {test_group}')
+        client.run_command(f'userdel -r {test_user}')
+
+    @pytest.mark.tier1
+    def test_bz213347(self, multihost, create_backup):
+        """
+        :title: Huge sparse files /var/log/lastlog and /var/log/faillog creating system problems
+        :id: 12c1bdd2-f0c9-11ee-b22b-845cf3eff344
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=213347
+        :steps:
+          1. Truncate the contents of /var/log/lastlog and /var/log/faillog files
+          2. Restore SELinux security contexts recursively on /var/log.
+          3. Add a group nfsnobody with GID 4294967294 and a user nfsnobody with UID 4294967294.
+            This is typically used for NFS operations where an anonymous user is required.
+          4. Retrieve the sizes of /var/log/lastlog and /var/log/faillog files and store
+            them in variables lastlogsize and failelogsize, respectively.
+          5. Check whether the sizes of lastlog and faillog are less than 1048576 bytes (1 MB)
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+          3. Should succeed
+          4. Should succeed
+          5. Should succeed
+        """
+        client = multihost.client[0]
+        client.run_command("> /var/log/lastlog")
+        client.run_command("> /var/log/faillog")
+        client.run_command("restorecon -r /var/log")
+        client.run_command("groupadd -g 4294967294 nfsnobody")
+        client.run_command("useradd -u 4294967294 -g nfsnobody -l "
+                           "nfsnobody -d /var/lib/nfs -s /sbin/nologin -c 'Anonymous NFS User'")
+        lastlogsize = int(client.run_command("echo $(stat -c '%s' /var/log/lastlog)").stdout_text.split()[0])
+        failelogsize = int(client.run_command("echo $(stat -c '%s' /var/log/faillog)").stdout_text.split()[0])
+        client.run_command("userdel -r nfsnobody", raiseonerr = False)
+        assert lastlogsize < 1048576
+        assert failelogsize < 1048576
+
+    @pytest.mark.tier1
+    def test_bz247514(self, multihost, create_backup):
+        """
+        :title: Make sure chpasswd does not segfault under some conditions
+        :id: 1b9a2ed0-f0c9-11ee-989d-845cf3eff344
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=247514
+        :steps:
+          1. Add a new user named "foo247514" and sets the password for the user with chpasswd.
+          2. Delete the user "foo247514" along with their home directory and mail spool.
+          3. Add the user "foo247514" again and set their password to "password" with chpasswd.
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+          3. Should succeed
+        """
+        client = multihost.client[0]
+        client.run_command("useradd foo247514")
+        client.run_command("echo foo247514:password | chpasswd -m")
+        client.run_command("userdel -rf foo247514")
+        client.run_command("useradd foo247514; echo foo247514:password |chpasswd -m")
+        client.run_command("userdel -rf foo247514")
