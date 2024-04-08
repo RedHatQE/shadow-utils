@@ -405,3 +405,62 @@ class TestShadowUtilsRegression():
         client.run_command("userdel -rf foo247514")
         client.run_command("useradd foo247514; echo foo247514:password |chpasswd -m")
         client.run_command("userdel -rf foo247514")
+
+    @pytest.mark.tier1
+    def test_bz450262(self, multihost, create_backup):
+        """
+        :title: useradd/usermod may give access to root group
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=450262
+        :id: 5d789546-f563-11ee-be64-845cf3eff344
+        :steps:
+          1. Create groups.
+          2. Test various scenarios of adding users to groups with different configurations.
+          3. Verify the behavior of user addition and group existence.
+          4. Clean up by deleting users, groups, and temporary files.
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+          3. Should succeed
+          4. Should succeed
+          5. Should succeed
+        """
+        client = multihost.client[0]
+        first_group = "firstgroup"
+        second_group = "secondgroup"
+        user_name = "user"
+        output_file = "/tmp/anuj"
+        client.run_command(f"groupadd {first_group}")
+        client.run_command(f"groupadd {second_group}")
+        for command in [f"useradd -G ,{first_group} {user_name}",
+                        f"useradd -G {first_group}, {user_name}",
+                        f"useradd -G ,{first_group}, {user_name}",
+                        f"useradd -G {first_group},{second_group}, {user_name}",
+                        f"useradd -G ,{first_group},{second_group} {user_name}",
+                        f"useradd -G ,{first_group},{second_group}, {user_name}",
+                        f"useradd -G {first_group},,{second_group} {user_name}"]:
+            with pytest.raises(Exception):
+                client.run_command(command)
+            client.run_command(f"groups {user_name} 2>&1 | tee {output_file}")
+            client.run_command(f"grep -i \"{user_name}.*no such user\" {output_file}")
+            with pytest.raises(Exception):
+                client.run_command(f"userdel -r {user_name}")
+
+        for command in [f"usermod -G {first_group}, {user_name} 2>&1 | tee {output_file}",
+                        f"usermod -G ,{first_group} {user_name} 2>&1 | tee {output_file}",
+                        f"usermod -G ,{first_group}, {user_name} 2>&1 | tee {output_file}",
+                        f"usermod -G {first_group},{second_group}, {user_name} 2>&1 | tee {output_file}",
+                        f"usermod -G ,{first_group},{second_group} {user_name} 2>&1 | tee {output_file}",
+                        f"usermod -G ,{first_group},{second_group}, {user_name} 2>&1 | tee {output_file}",
+                        f"usermod -G ,{first_group},,{second_group} {user_name} 2>&1 | tee {output_file}"]:
+            client.run_command(f"useradd {user_name}")
+            client.run_command(command)
+            client.run_command(f"grep -i -e \"group.*does not exist\" -e \"invalid.*argument\" "
+                               f"-e \"unknown group\" {output_file}")
+            client.run_command(f"groups {user_name} 2>&1 | tee {output_file}")
+            with pytest.raises(Exception):
+                client.run_command(f"grep -i \"{user_name}.*{first_group}\" {output_file}")
+            client.run_command(f"userdel -r {user_name}")
+
+        client.run_command(f"rm -f {output_file}")
+        client.run_command(f"groupdel {second_group}")
+        client.run_command(f"groupdel {first_group}")
