@@ -14,6 +14,13 @@ def execute_cmd(multihost, command):
     return cmd
 
 
+def log_back_in_time(multihost, number_of_days_back, user):
+    client = multihost.client[0]
+    client.run_command(f'date -s "-{number_of_days_back} day"')
+    client.run_command(f"su - {user} -c 'id'")
+    client.run_command(f'date -s "+{number_of_days_back} day"')
+
+
 class TestShadowUtilsRegression():
     """
     Automation of Shadow Utils tests
@@ -464,3 +471,70 @@ class TestShadowUtilsRegression():
         client.run_command(f"rm -f {output_file}")
         client.run_command(f"groupdel {second_group}")
         client.run_command(f"groupdel {first_group}")
+
+    @pytest.mark.tier1
+    def test_bz1114081_1285547(self, multihost, create_backup):
+        """
+        :title:pam_lastlog unable to reset locked account
+        :id: 94626b58-f7c6-11ee-bf95-845cf3eff344
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1285547
+                   https://bugzilla.redhat.com/show_bug.cgi?id=1114081
+        :steps:
+          1. Creates a new user test1.
+          2. Clear the contents of the lastlog file and sets its context using restorecon.
+          3. Generates options for the lastlog command and checks if they are all present.
+          4. Simulates a login for user test1 that is five days in the past using log_back_in_time.
+          5. Checks the last login entry for test1 to ensure it's not showing "Never logged in".
+          6. Run lastlog to check if the user has logged in before the last 4 days.
+          7. Run lastlog to check if the user has logged in before the last 6 days.
+          8. Run lastlog to check if the user has logged in the last 4 days.
+          9. Run lastlog to check if the user has logged in the last 6 days.
+          10. Clears the last login entry for test1 and checks if it shows "Never logged in" again.
+          11. Sets a new last login time for test1.
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+          3. Should succeed
+          4. Should succeed
+          5. Should succeed
+          6. Should succeed
+          7. Should not succeed
+          8. Should not succeed
+          9. Should succeed
+          10. Should succeed
+          11. Should succeed
+        """
+        client = multihost.client[0]
+        log = "/var/log/lastlog"
+        options = "/tmp/options.txt"
+        user = "test1"
+        opt = ["before", "help", "root", "time", "user", "set", "clear"]
+        client.run_command("useradd test1")
+        client.run_command(f"> {log}")
+        client.run_command(f"restorecon -vF {log}")
+        client.run_command(f"lastlog --help | grep '^[[:blank:]]*-[[:alpha:]],' > {options}")
+        real_data = client.run_command(f"cat {options}").stdout_text
+        for data in opt:
+            assert data in real_data
+        assert int(client.run_command(f"cat {options}  | wc -l").stdout_text.split()[0]) == len(opt)
+
+        log_back_in_time(multihost, 5, "test1")
+        last = client.run_command(f"lastlog --user test1 | grep test1").stdout_text
+        assert "test1" in last
+        assert "Never logged in" not in last
+        client.run_command(f"lastlog --before 4 --user {user} | grep {user}")
+        with pytest.raises(Exception):
+            client.run_command(f"lastlog --before 6 --user {user} | grep {user}")
+        with pytest.raises(Exception):
+            client.run_command(f"lastlog --time 4 --user {user} | grep {user}")
+        client.run_command(f"lastlog --time 6 --user {user} | grep {user}")
+
+        client.run_command(f"lastlog --clear --user {user}")
+        assert "Never logged in" in client.run_command(f"lastlog --user {user} | grep {user}").stdout_text
+
+        client.run_command(f"lastlog --set --user {user}")
+        last = client.run_command(f"lastlog --user test1 | grep test1").stdout_text
+        assert "test1" in last
+        assert "Never logged in" not in last
+        client.run_command(f"lastlog --clear --user {user}")
+        client.run_command(f"userdel -rf {user}")
