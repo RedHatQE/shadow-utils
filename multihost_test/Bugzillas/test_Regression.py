@@ -538,3 +538,249 @@ class TestShadowUtilsRegression():
         assert "Never logged in" not in last
         client.run_command(f"lastlog --clear --user {user}")
         client.run_command(f"userdel -rf {user}")
+
+    @pytest.mark.tier1
+    def test_bz1498628(self, multihost):
+        """
+        :title: Update to get newuidmap and newgidmap binaries
+        :id: 3af5735a-fd87-11ee-8c23-845cf3eff344
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1498628
+        :steps:
+          1. Add a user and set password for user.
+          2. Retrieve the UID (User ID) and GID (Group ID) of the created user.
+          3. Checks for any sub-UID and sub-GID entries for the user "testUser1" in
+            the /etc/subuid and /etc/subgid files respectively.
+          4. Sanity check for binaries attributes
+          5. Test that newuidmap and newgidmap have manual pages
+          6. Test that newuidmap and newgidmap works without altering the capability bounding set
+          7. Test that newuidmap and newgidmap does not allow mapping subuids outside of allowed range
+          8. Test that newuidmap and newgidmap works when called from process
+            with cap_sys_admin removed from bounding set
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+          3. Should succeed
+          4. Should succeed
+          5. Should succeed
+          6. Should succeed
+          7. Should succeed
+          8. Should succeed
+        """
+        client = multihost.client[0]
+        pidfile = "/tmp/pidfile.txt"
+        client.run_command("useradd testUser1")
+        password = "Secret123"
+        passwd_cmd = f'passwd --stdin testUser1'
+        multihost.client[0].run_command(passwd_cmd, stdin_text=password, raiseonerr=False)
+        client.run_command("grep testUser1 /etc/subuid")
+        testUserUid = client.run_command("id -u testUser1").stdout_text.split()[0]
+        testUserGid = client.run_command("id -g testUser1").stdout_text.split()[0]
+        subuid = client.run_command("grep testUser1 /etc/subuid | cut -f2 -d':'").stdout_text.split()[0]
+        client.run_command("grep testUser1 /etc/subgid")
+        subgid = client.run_command("grep testUser1 /etc/subgid | cut -f2 -d':'").stdout_text.split()[0]
+
+        # Sanity check for binaries attributes
+        assert "/usr/bin/newuidmap cap_setuid=ep" in client.run_command("getcap `which newuidmap`").stdout_text
+        assert "rwx" in client.run_command("ls -ld `which newuidmap`").stdout_text
+        assert "rws" not in client.run_command("ls -ld `which newuidmap`").stdout_text
+        assert "/usr/bin/newgidmap cap_setgid=ep" in client.run_command("getcap `which newgidmap`").stdout_text
+        assert "rwx" in client.run_command("ls -ld `which newgidmap`").stdout_text
+        assert "rws" not in client.run_command("ls -ld `which newgidmap`").stdout_text
+
+        # Test that newuidmap and newgidmap have manual pages
+        client.run_command("COLUMNS=1000 man newuidmap | col -b")
+        client.run_command("COLUMNS=1000 man newgidmap | col -b")
+
+        # Test that newuidmap and newgidmap works without altering the capability bounding set
+        ssh1 = SSHClient(multihost.client[0].ip, username="testUser1", password=password)
+        (r, r2, r3) = ssh1.exec_command(f"unshare -U bash -c 'grep PPid /proc/self/status | "
+                                        f"cut -f 2 ; sleep 30' >{pidfile} &")
+        time.sleep(2)
+        assert subuid not in client.run_command(f'cat "/proc/$(cat {pidfile})/uid_map"').stdout_text
+        client.run_command(f"runuser -u testUser1 -- newuidmap $(cat {pidfile}) {testUserUid} {subuid} 10")
+        assert subuid in client.run_command(f'cat "/proc/$(cat {pidfile})/uid_map"').stdout_text
+
+        (r1, r2, r3) = ssh1.exec_command(f"unshare -U bash -c 'grep PPid /proc/self/status | "
+                                         f"cut -f 2 ; sleep 30' >{pidfile} &")
+        time.sleep(2)
+        assert subgid not in client.run_command(f'cat "/proc/$(cat {pidfile})/gid_map"').stdout_text
+        client.run_command(f"runuser -u testUser1 -- newgidmap $(cat {pidfile}) {testUserGid} {subgid} 10")
+        assert subuid in client.run_command(f'cat "/proc/$(cat {pidfile})/gid_map"').stdout_text
+
+        # Test that newuidmap and newgidmap does not allow mapping subuids outside of allowed range
+        (r1, r2, r3) = ssh1.exec_command(f"unshare -U bash -c 'grep PPid /proc/self/status | "
+                                         f"cut -f 2 ; sleep 30' >{pidfile} &")
+        time.sleep(2)
+        assert subuid not in client.run_command(f'cat "/proc/$(cat {pidfile})/uid_map"').stdout_text
+        with pytest.raises(Exception):
+            client.run_command(f"runuser -u testUser1 -- newuidmap $(cat {pidfile}) {testUserUid} {subuid} 1 10")
+        assert subuid not in client.run_command(f'cat "/proc/$(cat {pidfile})/uid_map"').stdout_text
+
+        (r1, r2, r3) = ssh1.exec_command(f"unshare -U bash -c 'grep PPid /proc/self/status | "
+                                         f"cut -f 2 ; sleep 30' >{pidfile} &")
+        time.sleep(2)
+        assert subgid not in client.run_command(f'cat "/proc/$(cat {pidfile})/gid_map"').stdout_text
+        with pytest.raises(Exception):
+            client.run_command(f"runuser -u testUser1 -- newgidmap $(cat {pidfile}) {testUserGid} {subgid} 1 10")
+        assert subuid not in client.run_command(f'cat "/proc/$(cat {pidfile})/gid_map"').stdout_text
+
+        # Test that newuidmap and newgidmap works when called from process with cap_sys_admin removed from bounding set
+        (r1, r2, r3) = ssh1.exec_command(f"unshare -U bash -c 'grep PPid /proc/self/status | "
+                                         f"cut -f 2 ; sleep 30' >{pidfile} &")
+        time.sleep(2)
+        assert subuid not in client.run_command(f'cat "/proc/$(cat {pidfile})/uid_map"').stdout_text
+        client.run_command(f"capsh --gid={testUserGid} "
+                           f"--groups= --drop=cap_sys_admin "
+                           f"--uid={testUserUid} --inh= "
+                           f"--caps= -- -c 'newuidmap "
+                           f"'$(cat {pidfile})' {testUserUid} '{subuid}' 10'")
+        assert subuid in client.run_command(f'cat "/proc/$(cat {pidfile})/uid_map"').stdout_text
+
+        (r1, r2, r3) = ssh1.exec_command(f"unshare -U bash -c 'grep PPid /proc/self/status | "
+                                         f"cut -f 2 ; sleep 30' >{pidfile} &")
+        time.sleep(2)
+        assert subgid not in client.run_command(f'cat "/proc/$(cat {pidfile})/gid_map"').stdout_text
+        client.run_command(f"capsh --gid={testUserGid} "
+                           f"--groups= --drop=cap_sys_admin "
+                           f"--uid={testUserUid} --inh= --caps= -- "
+                           f"-c 'newgidmap '$(cat {pidfile})' {testUserUid} '{subuid}' 10'")
+        assert subuid in client.run_command(f'cat "/proc/$(cat {pidfile})/gid_map"').stdout_text
+
+        client.run_command("userdel -rf testUser1")
+
+    @pytest.mark.tier1
+    def test_bz1671280(self, multihost, create_backup):
+        """
+        :title:SUB_UID_COUNT and SUB_GID_COUNT default in man page is wrong
+        :id: 3364b9ac-fd87-11ee-a491-845cf3eff344
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1671280
+        :steps:
+          1. Clear the contents of the subuid and subgid files on the client.
+          2. Retrieve the content of login.defs, formats it using col -b,
+            and saves it to a temporary file /tmp/anuj.
+          3. Check if specific subuid and subgid related data exists in the retrieved content.
+          4. Extract values for SUB_UID_MIN, SUB_UID_MAX, and SUB_UID_COUNT from the temporary file.
+          5. Extract values for SUB_GID_MIN, SUB_GID_MAX, and SUB_GID_COUNT from the temporary file.
+          6. Create a new user usertest1.
+          7. Retrieve and verifies the content of subuid and subgid files to
+            ensure the user has been added correctly.
+          8. Verifies that the user has been removed by attempting to find the user in
+            subuid and subgid files, expecting exceptions if the user is not found.
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+          3. Should succeed
+          4. Should succeed
+          5. Should succeed
+          6. Should succeed
+          7. Should succeed
+          8. Should succeed
+        """
+        client = multihost.client[0]
+        subuid = "/etc/subuid"
+        subgid = "/etc/subgid"
+        client.run_command(f"> {subuid}")
+        client.run_command(f"> {subgid}")
+        client.run_command("COLUMNS=1000 man login.defs | col -b > /tmp/anuj")
+        real_data = client.run_command("cat /tmp/anuj").stdout_text
+        for data1 in [subuid,
+                      "SUB_UID_MIN",
+                      "SUB_UID_MAX",
+                      "SUB_UID_COUNT",
+                      "SUB_GID_MIN",
+                      "SUB_GID_MAX",
+                      "SUB_GID_COUNT"]:
+            assert data1 in real_data
+        sub_uid_min, sub_uid_max, sub_uid_count = client.run_command("sed -n 's/.*SUB_GID_MIN, SUB_GID_MAX, "
+                                                                     "SUB_GID_COUNT[^0-9]*\([0-9]*\), \([0-9]*\) "
+                                                                     "and \([0-9]*\).*/\\1 \\2 \\3/p' "
+                                                                     "/tmp/anuj").stdout_text.split()
+        sub_gid_min, sub_gid_max, sub_gid_count = client.run_command("sed -n 's/.*SUB_GID_MIN, SUB_GID_MAX, "
+                                                                     "SUB_GID_COUNT[^0-9]*\([0-9]*\), \([0-9]*\) "
+                                                                     "and \([0-9]*\).*/\\1 \\2 \\3/p' "
+                                                                     "/tmp/anuj").stdout_text.split()
+        client.run_command("rm -vf /tmp/anuj")
+        subuid = "/etc/subuid"
+        subgid = "/etc/subgid"
+        user = "usertest1"
+        client.run_command(f"useradd {user}")
+        client.run_command(f"cat {subuid}")
+        client.run_command(f"cat {subgid}")
+
+        assert client.run_command(f"cut -d: -f1 {subuid}").stdout_text.split()[0] == user
+        assert client.run_command(f"cut -d: -f2 {subuid}").stdout_text.split()[0] == sub_uid_min
+        assert client.run_command(f"cut -d: -f3 {subuid}").stdout_text.split()[0] == sub_uid_count
+
+        assert client.run_command(f"cut -d: -f1 {subgid}").stdout_text.split()[0] == user
+        assert client.run_command(f"cut -d: -f2 {subgid}").stdout_text.split()[0] == sub_gid_min
+        assert client.run_command(f"cut -d: -f3 {subgid}").stdout_text.split()[0] == sub_gid_count
+
+        client.run_command(f"userdel -rf {user}")
+        with pytest.raises(Exception):
+            client.run_command(f"grep {user} {subuid}")
+        with pytest.raises(Exception):
+            client.run_command(f"grep {user} {subgid}")
+
+    @pytest.mark.tier1
+    def test_bz1671280_2(self, multihost, create_backup):
+        """
+        :title:Make sure MD5 encryption is used by default
+        :id: 2c0a339e-fd87-11ee-b0fd-845cf3eff344
+        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1671280
+        :steps:
+          1. Clear the contents of subuid and subgid files.
+          2. Append configuration data related to SUB_UID and SUB_GID ranges to login.defs.
+          3. Display the last 6 lines of login.defs to verify the configuration.
+          4. Creates a new user named "usertest1".
+          5. Displays the content of subuid and subgid files to verify the addition of
+            the new user and its corresponding subuid and subgid ranges.
+          6. A that the new user's subuid and subgid ranges match the expected values.
+          7. Verifie that the user has been removed by attempting to find the user in subuid
+            and subgid files, expecting exceptions if the user is not found.
+        :expectedresults:
+          1. Should succeed
+          2. Should succeed
+          3. Should succeed
+          4. Should succeed
+          5. Should succeed
+          6. Should succeed
+          7. Should succeed
+        """
+        client = multihost.client[0]
+        sub_uid_min=25000
+        sub_uid_max=50000
+        sub_uid_count=100
+        sub_gid_min=125000
+        sub_gid_max=150000
+        sub_gid_count=200
+        subuid = "/etc/subuid"
+        subgid = "/etc/subgid"
+        loginDefs = "/etc/login.defs"
+        client.run_command(f"> {subuid}")
+        client.run_command(f"> {subgid}")
+        for data in [f"SUB_UID_MIN     {sub_uid_min}",
+                     f"SUB_UID_MAX     {sub_uid_max}",
+                     f"SUB_UID_COUNT   {sub_uid_count}",
+                     f"SUB_GID_MIN     {sub_gid_min}",
+                     f"SUB_GID_MAX     {sub_gid_max}",
+                     f"SUB_GID_COUNT   {sub_gid_count}"]:
+            client.run_command(f"echo {data} >> {loginDefs}")
+        client.run_command(f"tail -6 {loginDefs}")
+        user = "usertest1"
+        client.run_command(f"useradd {user}")
+        client.run_command(f"cat {subuid}")
+        client.run_command(f"cat {subgid}")
+
+        assert client.run_command(f"cut -d: -f1 {subuid}").stdout_text.split()[0] == user
+        assert int(client.run_command(f"cut -d: -f2 {subuid}").stdout_text.split()[0]) == sub_uid_min
+        assert int(client.run_command(f"cut -d: -f3 {subuid}").stdout_text.split()[0]) == sub_uid_count
+
+        assert client.run_command(f"cut -d: -f1 {subgid}").stdout_text.split()[0] == user
+        assert int(client.run_command(f"cut -d: -f2 {subgid}").stdout_text.split()[0]) == sub_gid_min
+        assert int(client.run_command(f"cut -d: -f3 {subgid}").stdout_text.split()[0]) == sub_gid_count
+
+        client.run_command(f"userdel -rf {user}")
+        with pytest.raises(Exception):
+            client.run_command(f"grep {user} {subuid}")
+        with pytest.raises(Exception):
+            client.run_command(f"grep {user} {subgid}")
