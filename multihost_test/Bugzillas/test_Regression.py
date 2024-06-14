@@ -167,6 +167,7 @@ class TestShadowUtilsRegression():
         execute_cmd(multihost, "rm -rf /home/bz487575dummy*")
         execute_cmd(multihost, "rm -rf /tmp/newusers.txt")
 
+    @pytest.mark.tier1
     def test_chpasswd(self, multihost):
         """
         :title: The value and format of salt in /etc/shadow is incorrect when chpasswd

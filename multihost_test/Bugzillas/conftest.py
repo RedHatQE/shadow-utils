@@ -63,9 +63,12 @@ def compile_list_subid_ranges(session_multihost, request):
     Compile list_subid_ranges.c file And install
     necessary packages
     """
-    session_multihost.client[0].run_command("yum "
-                                            "install -y "
-                                            "shadow-utils-*")
+    client = session_multihost.client[0]
+    if "Fedora" in client.distro:
+        client.run_command("yum install -y shadow-utils*")
+    else:
+        client.run_command("yum --enablerepo=*-CRB install -y shadow-utils*")
+
     session_multihost.client[0].run_command("yum "
                                             "install -y gcc")
 
