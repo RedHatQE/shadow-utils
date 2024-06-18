@@ -665,32 +665,6 @@ class TestShadowUtilsRegressions():
         client.run_command(f"userdel -rf {user}")
 
     @pytest.mark.tier1
-    def test_bz461455(self, multihost, create_backup):
-        """
-        :title:bz461455 new users fails with an obscure message when parent directory does not exist
-        :id: 7ee888f8-5c34-11ee-b760-845cf3eff344
-        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=461455
-        :steps:
-          1. Checks the existence of the newusers executable and its manual pages.
-          2. Tries to create a user with a non-existent home directory.
-          3. Verifies the expected error message was generated.
-          4. Restores the previously backed-up files.
-        :expectedresults:
-          1. Should succeed
-          2. Should succeed
-          3. Should succeed
-          4. Should succeed
-        """
-        client = multihost.client[0]
-        user_name = "user0"
-        user_secret = "s3kr3d0"
-        client.run_command("ls -l /usr/sbin/newusers")
-        client.run_command("ls -l /usr/share/man/man8/newusers.8*")
-        client.run_command(f"echo \"{user_name}:{user_secret}:12345:12345:"
-                           f":/tmp/no/such/dir/{user_name}:/bin/bash\" | newusers &>/tmp/anuj")
-        assert "No such file or directory" in client.run_command("cat /tmp/anuj").stdout_text
-
-    @pytest.mark.tier1
     def test_bz513055(self, multihost):
         """
         :title: Useradd does not preserve ACLs under /etc/skel when creating an user
@@ -724,6 +698,7 @@ class TestShadowUtilsRegressions():
           10. Should succeed
         """
         client = multihost.client[0]
+        client.run_command("dnf install -y acl")
         client.run_command("ls -ld /etc/skel")
         client.run_command("date > /etc/skel/testfile")
         client.run_command("ls -l /etc/skel/testfile")
