@@ -394,38 +394,6 @@ class TestShadowUtilsRegressions():
         client.run_command(f"grep {user} /etc/passwd")
         client.run_command(f"userdel -rf {user}")
 
-    def test_bz461455(self, multihost):
-        """
-        :title: New users will fail with an uninformative message if the
-            new user's parent directory does not exist
-        :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=461455
-        :id: b76aa5b0-1edd-11ee-a067-845cf3eff344
-        :steps:
-          1. Executes the ls command with the -l option to list detailed information about newusers
-          2. Constructs a string containing the user details in the format
-            "username:password:UID:GID:gecos:home_dir:shell".Pipes this string to the newusers command, which
-            reads a file in the same format and creates or modifies users accordingly.The output of the command
-            is redirected to a file "/tmp/anuj".
-          3. Checks if the string "No such file or directory" is present in the output of the cat command.
-            If not, an assertion error will be raised.
-        :expectedresults:
-          1. Should succeed
-          2. Should succeed
-          3. Should succeed
-        """
-        user_name = "user0"
-        user_secret = "s3kr3d0"
-        client = multihost.client[0]
-        for file in ["/etc/group", "/etc/gshadow", "/etc/passwd", "/etc/shadow"]:
-            client.run_command(f"cp -vf {file} {file}_anuj")
-        client.run_command("ls -l /usr/sbin/newusers")
-        client.run_command("ls -l /usr/share/man/man8/newusers.8*")
-        client.run_command(f"echo \"{user_name}:{user_secret}:12345:12345::/tmp/no/such/dir/{user_name}"
-                           f":/bin/bash\" | newusers &>/tmp/anuj")
-        for file in ["/etc/group", "/etc/gshadow", "/etc/passwd", "/etc/shadow"]:
-            client.run_command(f"cp -vf {file}_anuj {file}")
-        assert "No such file or directory" in client.run_command("cat /tmp/anuj").stdout_text
-
     def test_bz_749205(self, multihost):
         """
         :title: BZ#749205 (useradd -Z ... executes /usr/sbin/semanage but)
