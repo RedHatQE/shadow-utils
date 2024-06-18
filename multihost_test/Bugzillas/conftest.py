@@ -42,6 +42,15 @@ def multihost(session_multihost, request):
     return session_multihost
 
 
+@pytest.fixture(scope="function", autouse=True)
+def clean(session_multihost):
+    """
+    Make sure to clean
+    """
+    client = session_multihost.client[0]
+    client.run_command("> /tmp/anuj")
+
+
 @pytest.fixture(scope='function')
 def backupsssdconf(session_multihost, request):
     """ Backup and restore sssd.conf """
