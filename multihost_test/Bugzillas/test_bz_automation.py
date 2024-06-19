@@ -2,7 +2,7 @@
 import pytest
 import subprocess
 import os
-import time
+import re
 
 
 def execute_cmd(multihost, command):
@@ -386,6 +386,8 @@ class TestShadowBz(object):
           4. Should raise an exception
           5. Should succeed
         """
+        if float(re.findall("\d+\.\d+", multihost.client[0].distro)[0]) >= 10:
+            pytest.skip("Unsupported")
         # we are expecting /home exists
         execute_cmd(multihost, "dd if=/dev/zero of=homedisk bs=1M count=200")
         execute_cmd(multihost, "losetup /dev/loop0 homedisk")
@@ -436,6 +438,8 @@ class TestShadowBz(object):
           4. Should succeed
           5. Should succeed
         """
+        if float(re.findall("\d+\.\d+", multihost.client[0].distro)[0]) >= 10:
+            pytest.skip("Unsupported")
         # create test disk and mount it as home
         execute_cmd(multihost, "dd if=/dev/zero of=homedisk bs=1M count=200")
         execute_cmd(multihost, "losetup /dev/loop0 homedisk")
@@ -485,6 +489,8 @@ class TestShadowBz(object):
           4. Should raise an exception
           5. Should succeed
         """
+        if float(re.findall("\d+\.\d+", multihost.client[0].distro)[0]) >= 10:
+            pytest.skip("Unsupported")
         # we are expecting /home exists
         execute_cmd(multihost, "dd if=/dev/zero of=homedisk bs=1M count=200")
         execute_cmd(multihost, "losetup /dev/loop0 homedisk")
@@ -535,6 +541,8 @@ class TestShadowBz(object):
           4. Should succeed
           5. Should succeed
         """
+        if float(re.findall("\d+\.\d+", multihost.client[0].distro)[0]) >= 10:
+            pytest.skip("Unsupported")
         # we are expecting /home exists
         execute_cmd(multihost, "dd if=/dev/zero of=homedisk bs=1M count=200")
         execute_cmd(multihost, "losetup /dev/loop0 homedisk")
