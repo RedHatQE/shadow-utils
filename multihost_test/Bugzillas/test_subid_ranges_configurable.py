@@ -1,4 +1,8 @@
-""" Automation of Shadow-utils bugs """
+"""
+Shadow Utils Test Cases
+
+:requirement: shadow-utils
+"""
 
 import pytest
 import subprocess

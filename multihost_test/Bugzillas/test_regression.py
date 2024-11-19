@@ -1,4 +1,8 @@
-""" Automation of Shadow Utils tests """
+"""
+Shadow Utils Test Cases
+
+:requirement: shadow-utils
+"""
 
 from __future__ import print_function
 import subprocess
