@@ -4,7 +4,7 @@ from __future__ import print_function
 import subprocess
 import pytest
 import os
-import time
+import re
 import ldap
 import random
 from pytest_multihost import make_multihost_fixture
@@ -159,4 +159,5 @@ def setup_session(session_multihost, request):
     execute_cmd(session_multihost, "yum update -y shadow-utils")
     execute_cmd(session_multihost, 'yum install -y expect')
     #execute_cmd(session_multihost, 'yum install -y libeconf*')
-    execute_cmd(session_multihost, "yum install -y gfs2-utils")
+    if float(re.findall("\d+\.\d+", session_multihost.client[0].distro)[0]) < 10:
+        execute_cmd(session_multihost, "yum install -y gfs2-utils")
