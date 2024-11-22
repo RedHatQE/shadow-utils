@@ -17,9 +17,9 @@ class TestShadowUtilsErrors():
     Automation of Shadow Utils tests
     """
     def test_error_2006_0032(self, multihost):
-        """
-        :title: Shadow-Utils: Tests if shadow-utils are
-         immune against bugs in 2006:0032
+        """Tests if shadow-utils are immune against bugs in 2006:0032
+
+        :title: Tests if shadow-utils are immune against bugs in 2006:0032
         :id: 017f615a-92a8-11eb-bca1-002b677efe14
         :steps:
           1. Creating tmp directory

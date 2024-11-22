@@ -21,10 +21,9 @@ class TestShadowUtilsRegressions():
     Automation of Shadow Utils tests
     """
     def test_bz_593683(self, multihost):
-        """
-        :title: Shadow-Utils: useradd doesn't create
-         system accounts with the same uid and gid
-         when no groupid specified
+        """useradd doesn't create system accounts with the same uid and gid
+
+        :title: useradd doesn't create system accounts with the same uid and gid when no groupid specified
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=593683
         :id: d6ced7c4-a0c6-11eb-b897-002b677efe14
         :steps:
@@ -49,9 +48,9 @@ class TestShadowUtilsRegressions():
         multihost.client[0].run_command("userdel -r shadowtestuser")
 
     def test_bz_639975(self, multihost):
-        """
-        :title: Shadow-Utils: useradd and usermod should return
-         a special exit code if SELinux user mapping is invalid
+        """useradd and usermod should return a special exit code if SELinux user mapping is invalid
+
+        :title: useradd and usermod should return a special exit code if SELinux user mapping is invalid
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=639975
         :id: dd169d9c-a0c6-11eb-a238-002b677efe14
         :steps:
@@ -74,8 +73,9 @@ class TestShadowUtilsRegressions():
         assert 'user_11' not in cmd.stdout_text
 
     def test_bz_1220504(self, multihost):
-        """
-        :title: BZ#1220504 (usermod -p allowing colon (ie. '' ) in encrypted)
+        """BZ#1220504 (usermod -p allowing colon in encrypted)
+
+        :title: BZ#1220504 (usermod -p allowing colon in encrypted)
         :id: 7d7848f8-9de1-11ed-b5f3-845cf3eff344
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1220504
         :steps:
@@ -105,7 +105,8 @@ class TestShadowUtilsRegressions():
         assert cmd1.stdout_text == cmd2.stdout_text
 
     def test_bz_956742(self, multihost):
-        """
+        """libmisc/strtoday.c backport return -2 in case of invalid date
+
         :title: libmisc/strtoday.c backport return -2 in case of invalid date
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=956742
         :id: 6ec36e98-ab6d-11ed-a54b-845cf3eff344
@@ -149,7 +150,8 @@ class TestShadowUtilsRegressions():
         client.run_command(f"userdel -rf {user}")
 
     def test_bz_1206273(self, multihost):
-        """
+        """Issue using chage command to remove account expiration date.
+
         :title: Issue using chage command to remove account expiration date.
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1206273
         :id: 1c2d9994-b1e2-11ed-b608-845cf3eff344
@@ -182,10 +184,11 @@ class TestShadowUtilsRegressions():
         assert user in cmd2.stdout_text
 
     def test_bz_1089666(self, multihost):
-        """
+        """Given an existing user with no home directory, when the home directory
+
         :title: Given an existing user with no home directory, when the home directory
-            is moved to a new location, then the new directory won't be
-            created and a warning message will be printed.
+                is moved to a new location, then the new directory won't be
+                created and a warning message will be printed.
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1089666
         :id: 8cb0f63a-b80d-11ed-a4d5-845cf3eff344
         :steps:
@@ -211,7 +214,8 @@ class TestShadowUtilsRegressions():
             client.run_command("ls  /home/bz1089666_user_2")
 
     def test_bz_1016516(self, multihost):
-        """
+        """usermod exits with exit status 0 even when it fails.
+
         :title: usermod exits with exit status 0 even when it fails.
         :id: 30b949b4-bca3-11ed-ba2a-845cf3eff344
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1016516
@@ -250,9 +254,10 @@ class TestShadowUtilsRegressions():
         client.run_command(f"userdel -rf {user}")
 
     def test_bz_973647(self, multihost):
-        """
+        """Missing error message when useradd cannot create user
+
         :title: Missing error message when useradd cannot create user
-            with homedir in location without default selinux context
+                with homedir in location without default selinux context
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=973647
         :id: 86388e92-c228-11ed-88a2-845cf3eff344
         :steps:
@@ -304,9 +309,10 @@ class TestShadowUtilsRegressions():
             client.run_command("semanage fcontext -d '/althome(/.*)*'")
 
     def test_bz_921995(self, multihost):
-        """
+        """Include upstream patches to make it clear in the
+
         :title: Include upstream patches to make it clear in the
-            error message why userdel wasn't able to delete an account
+                error message why userdel wasn't able to delete an account
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=921995
         :id: 784fae50-170a-11ee-9160-845cf3eff344
         :steps:
@@ -337,7 +343,8 @@ class TestShadowUtilsRegressions():
         client.run_command(f"userdel -rfZ {user}")
 
     def test_bz_782515(self, multihost):
-        """
+        """Useradd is unable to create homedir if top-level directory does not exist
+
         :title: Useradd is unable to create homedir if top-level directory does not exist
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=782515
         :id: a305c84e-1720-11ee-847e-845cf3eff344
@@ -359,7 +366,8 @@ class TestShadowUtilsRegressions():
         client.run_command(f"userdel -rf tstusr")
 
     def test_bz469158(self, multihost):
-        """
+        """Useradd does not recognize -b and --base-dir options
+
         :title:Useradd does not recognize -b and --base-dir options
         :id: 46ebb894-1edb-11ee-be06-845cf3eff344
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=469158
@@ -402,7 +410,8 @@ class TestShadowUtilsRegressions():
         client.run_command(f"userdel -rf {user}")
 
     def test_bz_749205(self, multihost):
-        """
+        """BZ#749205 (useradd -Z ... executes /usr/sbin/semanage but)
+
         :title: BZ#749205 (useradd -Z ... executes /usr/sbin/semanage but)
         :id: d2512a34-2469-11ee-a430-845cf3eff344
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=749205
@@ -433,7 +442,8 @@ class TestShadowUtilsRegressions():
         client.run_command("cp -vf /usr/sbin/semanage_anuj /usr/sbin/semanage")
 
     def test_bz723921(self, multihost):
-        """
+        """Checks if openssl partialy supports relro bz723921-shadow-utils-relro-support
+
         :title: Checks if openssl partialy supports relro bz723921-shadow-utils-relro-support
         :id: d87de2ee-2469-11ee-bd8a-845cf3eff344
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=723921
@@ -455,7 +465,8 @@ class TestShadowUtilsRegressions():
             assert "full" in cmd
 
     def test_bz709605(self, multihost):
-        """
+        """bz709605-lock-files-are-not-deleted
+
         :title: bz709605-lock-files-are-not-deleted
         :id: de527d88-2469-11ee-b270-845cf3eff344
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=709605
@@ -516,7 +527,8 @@ class TestShadowUtilsRegressions():
             client.run_command(command)
 
     def test_bz693377(self, multihost):
-        """
+        """bz693377-useradd-segfaults-when-UID_MAX-larger-than-2147483647
+
         :title: bz693377-useradd-segfaults-when-UID_MAX-larger-than-2147483647
         :id: 3057c3f8-29e8-11ee-81fb-845cf3eff344
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=693377
@@ -563,7 +575,8 @@ class TestShadowUtilsRegressions():
 
     @pytest.mark.tier1
     def test_bz681020(self, multihost):
-        """
+        """pwconv and pwunconv alter uids over 2147483647
+
         :title:pwconv and pwunconv alter uids over 2147483647
         :id: 88b97d66-4630-11ee-a650-845cf3eff344
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=681020
@@ -606,7 +619,8 @@ class TestShadowUtilsRegressions():
 
     @pytest.mark.tier1
     def test_bz469158(self, multihost):
-        """
+        """bz469158 useradd does not recognize -b and --base-dir options
+
         :title:bz469158 useradd does not recognize -b and --base-dir options
         :id: 773e7702-5c34-11ee-9186-845cf3eff344
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=469158
@@ -641,7 +655,8 @@ class TestShadowUtilsRegressions():
 
     @pytest.mark.tier1
     def test_bz513055(self, multihost):
-        """
+        """Useradd does not preserve ACLs under /etc/skel when creating an user
+
         :title: Useradd does not preserve ACLs under /etc/skel when creating an user
         :id: db88c706-61b3-11ee-b15f-845cf3eff344
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=513055
