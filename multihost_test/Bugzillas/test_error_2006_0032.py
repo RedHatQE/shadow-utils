@@ -2,6 +2,9 @@
 Shadow Utils Test Cases
 
 :requirement: shadow-utils
+:casecomponent: shadow-utils
+:subsystemteam: sst_idm_sssd
+:status: approved
 """
 
 from __future__ import print_function
