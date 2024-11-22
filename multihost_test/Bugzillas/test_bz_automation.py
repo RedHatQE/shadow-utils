@@ -31,7 +31,8 @@ def clean_up(multihost):
 @pytest.mark.tier1
 class TestShadowBz(object):
     def test_segmentation(self, multihost):
-        """
+        """Groupdel gives segmentation fault when using '-P'
+
         :title: Groupdel gives segmentation fault when using '-P'
         :id: f86daef6-540c-11ec-a7c2-845cf3eff344
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1986782
@@ -45,7 +46,8 @@ class TestShadowBz(object):
             execute_cmd(multihost, i)
 
     def test_crashes(self, multihost):
-        """
+        """Useradd crashes with --prefix
+
         :title: Useradd crashes with --prefix
         :id: 348894f6-5416-11ec-b822-845cf3eff344
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=2020238
@@ -68,7 +70,8 @@ class TestShadowBz(object):
         execute_cmd(multihost, "rm -fr /tmp/newroot")
 
     def test_2093311(self, multihost, create_backup, create_localuser):
-        """
+        """sub*id files can also contain IDs
+
         :title: sub*id files can also contain IDs
         :id: 80471586-122d-11ed-8890-845cf3eff344
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=2093311
@@ -83,9 +86,9 @@ class TestShadowBz(object):
             assert i in result.split()
 
     def test_bz672510(self, multihost):
-        """
-        :title: Checks if newgrp command works properly
-         for password protected groups
+        """Checks if newgrp command works properly for password protected groups
+
+        :title: Checks if newgrp command works properly for password protected groups
         :id: f2bb9b8e-39a9-11ed-88a4-845cf3eff344
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=672510
         :steps:
@@ -142,9 +145,9 @@ class TestShadowBz(object):
         execute_cmd(multihost, f"groupdel  {tgroup}")
 
     def test_bz_667593(self, multihost):
-        """
-        :title: Shadow-Utils: sg works with password
-         protected group with correct password
+        """Sg works with password protected group with correct password
+
+        :title: Sg works with password protected group with correct password
         :id: 8e5d5324-4e23-11ed-95b7-845cf3eff344
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=667593
         :steps:
@@ -196,7 +199,8 @@ class TestShadowBz(object):
             assert data_1 in cmd.stdout_text
 
     def test_bz_2012929(self, multihost, create_backup):
-        """
+        """Pre allocated subordinate user/group IDs don't get honored
+
         :title: Pre allocated subordinate user/group IDs don't get honored
         :id: 1aee5474-c7a9-11ed-9638-845cf3eff344
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=2012929
@@ -220,7 +224,8 @@ class TestShadowBz(object):
         execute_cmd(multihost, "userdel -rf container")
 
     def test_bz_1994269(self, multihost):
-        """
+        """Stop allocating ID 65536 (reserved) for new users/groups
+
         :title: Stop allocating ID 65536 (reserved) for new users/groups
         :id: b012f94e-d73d-11ed-b7e6-845cf3eff344
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1994269
@@ -251,7 +256,8 @@ class TestShadowBz(object):
 
     @pytest.mark.tier1
     def test_bz_955769(self, multihost):
-        """
+        """useradd not assigning correct SELinux user to contexts of home directory files
+
         :title: useradd not assigning correct SELinux user to contexts of home directory files
         :id: 76b787ce-ee52-11ed-b607-845cf3eff344
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=955769
@@ -291,9 +297,10 @@ class TestShadowBz(object):
 
     @pytest.mark.tier1
     def test_bz_951743(self, multihost):
-        """
-        :title: Unlock a user's password with "usermod -U" after
-            the user's password has been locked with "passwd -l"
+        """Unlock a user's password
+
+        :title: Unlock a user's password with "usermod -U"
+                after the user's password has been locked with "passwd -l"
         :id: ba2bd37c-f927-11ed-b2bb-845cf3eff344
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=951743
         :steps:
@@ -376,7 +383,8 @@ class TestShadowBz(object):
 
     @pytest.mark.tier1
     def test_bz690829_1(self, multihost):
-        """
+        """Checks if useradd is able to copy files
+
         :title: Checks if useradd is able to copy files
             from /etc/skel also if /home not mounted with acl option.
         :id: 5d372fe0-4c88-11ee-9152-845cf3eff344
@@ -428,7 +436,8 @@ class TestShadowBz(object):
 
     @pytest.mark.tier1
     def test_bz690829_2(self, multihost):
-        """
+        """Checks if useradd is able to copy files
+
         :title: Checks if useradd is able to copy files
             from /etc/skel also if /home mounted with acl option.
         :id: 0e706c0c-5604-11ee-8eef-845cf3eff344
@@ -479,7 +488,8 @@ class TestShadowBz(object):
 
     @pytest.mark.tier1
     def test_bz690829_3(self, multihost):
-        """
+        """Checks if useradd is able to copy files
+
         :title: Checks if useradd is able to copy files
             from /etc/skel also if /home not mounted with acl option.
         :id: 17a033fc-5604-11ee-88a3-845cf3eff344
@@ -531,7 +541,8 @@ class TestShadowBz(object):
 
     @pytest.mark.tier1
     def test_bz690829_4(self, multihost):
-        """
+        """Checks if useradd is able to copy files
+
         :title: Checks if useradd is able to copy files
             from /etc/skel also if /home mounted with acl option.
         :id: 210d177a-5604-11ee-b3f3-845cf3eff344

@@ -34,7 +34,8 @@ class TestShadowUtilsRegression():
     """
     @pytest.mark.tier1
     def test_bz507706(self, multihost, create_backup):
-        """
+        """bz507706 grpconv wants to take all memory if /etc/group contains duplicate entries
+
         :title:bz507706 grpconv wants to take all memory if /etc/group contains duplicate entries
         :id: dfe8883e-6728-11ee-b0c7-845cf3eff344
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=507706
@@ -77,7 +78,8 @@ class TestShadowUtilsRegression():
 
     @pytest.mark.tier1
     def test_bz494575(self, multihost):
-        """
+        """bz494575 usermod calls restorecon everytime you try to change home directory of a user
+
         :title:bz494575 usermod calls restorecon everytime you try to change home directory of a user
         :id: e4a5fcf8-6728-11ee-a718-845cf3eff344
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=494575
@@ -120,7 +122,8 @@ class TestShadowUtilsRegression():
 
     @pytest.mark.tier2
     def test_bz487575(self, multihost, create_backup):
-        """
+        """bz487575 useradd does not clear errno prior to checking what function returns
+
         :title:bz487575 useradd does not clear errno prior to checking what function returns
         :id: a0d1bdce-7d20-11ee-b8f8-845cf3eff344
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=487575
@@ -176,7 +179,8 @@ class TestShadowUtilsRegression():
 
     @pytest.mark.tier1
     def test_chpasswd(self, multihost):
-        """
+        """The value and format of salt in /etc/shadow is incorrect when chpasswd
+
         :title: The value and format of salt in /etc/shadow is incorrect when chpasswd
         :id: c7415312-85f8-11ee-b721-845cf3eff344
         :bugzilla: https://issues.redhat.com/browse/RHEL-16668
@@ -203,7 +207,8 @@ class TestShadowUtilsRegression():
 
     @pytest.mark.tier1
     def test_bz1315007(self, multihost):
-        """
+        """/etc/shadow- is created by useradd with mode 0000
+
         :title: /etc/shadow- is created by useradd with mode 0000
         :id: 63b4cf58-8dbf-11ee-b0b4-845cf3eff344
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1315007
@@ -241,7 +246,8 @@ class TestShadowUtilsRegression():
 
     @pytest.mark.tier1
     def test_bz455603(self, multihost, create_backup):
-        """
+        """groupmems does not check input strings for special characters
+
         :title: groupmems does not check input strings for special characters
         :id: d4f84f78-995e-11ee-aaf0-845cf3eff344
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=455603
@@ -284,7 +290,8 @@ class TestShadowUtilsRegression():
 
     @pytest.mark.tier1
     def test_bz306241(self, multihost, create_backup):
-        """
+        """newusers creates users with negative UID and GID
+
         :title: newusers creates users with negative UID and GID
         :id: 06e1072a-f0c9-11ee-9905-845cf3eff344
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=306241
@@ -323,7 +330,8 @@ class TestShadowUtilsRegression():
 
     @pytest.mark.tier1
     def test_bz455609(self, multihost, create_backup):
-        """
+        """groupmems -d does not work
+
         :title: groupmems -d does not work
         :id: 0d62b45e-f0c9-11ee-b808-845cf3eff344
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=455609
@@ -367,7 +375,8 @@ class TestShadowUtilsRegression():
 
     @pytest.mark.tier1
     def test_bz213347(self, multihost, create_backup):
-        """
+        """Huge sparse files /var/log/lastlog and /var/log/faillog creating system problems
+
         :title: Huge sparse files /var/log/lastlog and /var/log/faillog creating system problems
         :id: 12c1bdd2-f0c9-11ee-b22b-845cf3eff344
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=213347
@@ -401,7 +410,8 @@ class TestShadowUtilsRegression():
 
     @pytest.mark.tier1
     def test_bz247514(self, multihost, create_backup):
-        """
+        """Make sure chpasswd does not segfault under some conditions
+
         :title: Make sure chpasswd does not segfault under some conditions
         :id: 1b9a2ed0-f0c9-11ee-989d-845cf3eff344
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=247514
@@ -423,7 +433,8 @@ class TestShadowUtilsRegression():
 
     @pytest.mark.tier1
     def test_bz450262(self, multihost, create_backup):
-        """
+        """useradd/usermod may give access to root group
+
         :title: useradd/usermod may give access to root group
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=450262
         :id: 5d789546-f563-11ee-be64-845cf3eff344
@@ -482,7 +493,8 @@ class TestShadowUtilsRegression():
 
     @pytest.mark.tier1
     def test_bz1114081_1285547(self, multihost, create_backup):
-        """
+        """pam_lastlog unable to reset locked account
+
         :title:pam_lastlog unable to reset locked account
         :id: 94626b58-f7c6-11ee-bf95-845cf3eff344
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1285547
@@ -549,7 +561,8 @@ class TestShadowUtilsRegression():
 
     @pytest.mark.tier1
     def test_bz1498628(self, multihost):
-        """
+        """Update to get newuidmap and newgidmap binaries
+
         :title: Update to get newuidmap and newgidmap binaries
         :id: 3af5735a-fd87-11ee-8c23-845cf3eff344
         :bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1498628
