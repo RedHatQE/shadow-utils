@@ -3,7 +3,7 @@ Shadow Utils Test Cases
 
 :requirement: shadow-utils
 :casecomponent: shadow-utils
-:subsystemteam: rhel_sst_idm_sssd
+:subsystemteam: sst_idm_sssd
 :status: approved
 """
 
