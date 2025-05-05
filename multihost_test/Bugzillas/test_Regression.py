@@ -589,7 +589,7 @@ class TestShadowUtilsRegression():
         """
         client = multihost.client[0]
         pidfile = "/tmp/pidfile.txt"
-        client.run_command("useradd testUser1")
+        client.run_command("useradd testUse1")
         password = "Secret123"
         passwd_cmd = f'passwd --stdin testUser1'
         multihost.client[0].run_command(passwd_cmd, stdin_text=password, raiseonerr=False)
