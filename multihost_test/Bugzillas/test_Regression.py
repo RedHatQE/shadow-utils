@@ -559,6 +559,7 @@ class TestShadowUtilsRegression():
         client.run_command(f"lastlog --clear --user {user}")
         client.run_command(f"userdel -rf {user}")
 
+    @pytest.mark.tier1
     def test_bz1498628(self, multihost):
         """Update to get newuidmap and newgidmap binaries
 
