@@ -145,7 +145,7 @@ def create_localuser(session_multihost, request):
 
     def delusers():
         """ Delete local users """
-        session_multihost.client[0].run_command(f"userdel -rf {user}")
+        session_multihost.client[0].run_command(f"userdel -rf {user}", raiseonerr=False)
     request.addfinalizer(delusers)
 
 
