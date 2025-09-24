@@ -192,7 +192,7 @@ class TestShadowBz(object):
         cmd = execute_cmd(multihost, "sh /tmp/bz_667593_4.sh")
         execute_cmd(multihost, "groupdel tgroup00011")
         execute_cmd(multihost, "pkill -U tuser0011 && sleep 5 || :")
-        execute_cmd(multihost, "userdel -r tuser0011")
+        multihost.client[0].run_command("userdel -r tuser0011", raiseonerr=False)
         execute_cmd(multihost, "rm -vf /tmp/bz_667593*")
         for data_1 in ['tgroup00011', 'groups=', 'tuser0011', 'logout']:
             assert data_1 in cmd.stdout_text
