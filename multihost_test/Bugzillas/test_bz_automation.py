@@ -590,3 +590,31 @@ class TestShadowBz(object):
         assert '-r--rwxr--+' in execute_cmd(multihost, "ls -l /home/test_anuj/suppa").stdout_text
         # Clean_up
         clean_up(multihost)
+
+    def test_podman_nsswitch_permissions(self, multihost, create_backup, create_localuser):
+        """Verify that rootless podman does not crash with segfault when /etc/nsswitch.conf has 0600 permissions.
+
+        :title: Rootless podman does not crash with segfault when /etc/nsswitch.conf permissions are 0600
+        :id: f5d3235e-c39a-11f0-82ea-0ec11b8a1c6e
+        :bugzilla: https://issues.redhat.com/browse/RHEL-83432, https://issues.redhat.com/browse/RHEL-21366,
+                    https://issues.redhat.com/browse/RHEL-83431
+        :steps:
+          1. Install podman
+          2. Set /etc/nsswitch.conf permissions to 0600
+          3. Verify no error of segfault
+        :expectedresults:
+          1. Podman is installed successfully
+          2. Permissions are set to 0600
+          3. No segfault (exit code not 139)
+        """
+        user = "local_anuj"
+        execute_cmd(multihost, "yum install -y podman")
+        execute_cmd(multihost, "chmod 0600 /etc/nsswitch.conf")
+        cmd = multihost.client[0].run_command(
+            f'su - {user} -c "podman version"',
+            raiseonerr=False
+        )
+        # Segfault would typically exit with 139, check it's not and has error message
+        assert cmd.returncode != 139, "Podman crashed with segfault"
+        assert "version" in cmd.stdout_text.lower(), "Podman version not found in output"
+        assert "SIGSEGV" not in cmd.stderr_text, "SIGSEGV error message produced"
