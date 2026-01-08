@@ -12,6 +12,7 @@ import pytest
 import subprocess
 import os
 import time
+import re
 from sssd.testlib.common.utils import SSHClient, sssdTools
 
 
@@ -148,6 +149,8 @@ class TestShadowUtilsRegression():
           6. Should succeed
           7. Should succeed
         """
+        if float(re.findall("\d+\.\d+", multihost.client[0].distro)[0]) >= 10:
+            pytest.skip("Unsupported")
         nsd_conf = "/etc/nscd.conf"
         nextuser_id = 16
         gid = 600

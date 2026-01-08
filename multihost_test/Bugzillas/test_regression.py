@@ -11,6 +11,7 @@ from __future__ import print_function
 import subprocess
 import pytest
 import os
+import re
 from sssd.testlib.common.expect import pexpect_ssh
 from sssd.testlib.common.ssh2_python import SSHClient
 
@@ -203,6 +204,8 @@ class TestShadowUtilsRegressions():
           3. Should succeed
           4. Should succeed
         """
+        if float(re.findall("\d+\.\d+", multihost.client[0].distro)[0]) >= 9:
+            pytest.skip("Unsupported")
         client = multihost.client[0]
         user = "bz1089666_user"
         client.run_command(f"useradd {user}")
@@ -294,19 +297,20 @@ class TestShadowUtilsRegressions():
             11. Should succeed
         """
         client = multihost.client[0]
-        if '8' in client.run_command("cat /etc/redhat-release").stdout_text:
-            client.run_command("setenforce 1")
-            client.run_command("semanage fcontext -a -t '<<none>>' '/althome(/.*)*'")
-            client.run_command("mkdir /althome")
-            assert "unconfined_u" in client.run_command("ls -laZ /althome").stdout_text
-            client.run_command("matchpathcon /althome")
-            client.run_command("restorecon -Rv /althome")
-            client.run_command("useradd -m -d /althome/hildegarda hildegarda"
-                               " |& tee /dev/stderr | grep 'cannot set SELinux context for home directory'")
-            client.run_command("ls -laZ /althome")
-            client.run_command("grep hildegarda /etc/passwd && userdel hildegarda")
-            client.run_command("rm -rf /althome")
-            client.run_command("semanage fcontext -d '/althome(/.*)*'")
+        if float(re.findall("\d+\.\d+", multihost.client[0].distro)[0]) >= 9:
+            pytest.skip("Unsupported")
+        client.run_command("setenforce 1")
+        client.run_command("semanage fcontext -a -t '<<none>>' '/althome(/.*)*'")
+        client.run_command("mkdir /althome")
+        assert "unconfined_u" in client.run_command("ls -laZ /althome").stdout_text
+        client.run_command("matchpathcon /althome")
+        client.run_command("restorecon -Rv /althome")
+        client.run_command("useradd -m -d /althome/hildegarda hildegarda"
+                           " |& tee /dev/stderr | grep 'cannot set SELinux context for home directory'")
+        client.run_command("ls -laZ /althome")
+        client.run_command("grep hildegarda /etc/passwd && userdel hildegarda")
+        client.run_command("rm -rf /althome")
+        client.run_command("semanage fcontext -d '/althome(/.*)*'")
 
     def test_bz_921995(self, multihost):
         """Include upstream patches to make it clear in the
@@ -358,7 +362,7 @@ class TestShadowUtilsRegressions():
         client = multihost.client[0]
         with pytest.raises(subprocess.CalledProcessError):
             client.run_command(f"ls -l {temp_dir}")
-        if '8' in client.run_command("cat /etc/redhat-release").stdout_text:
+        if float(re.findall("\d+\.\d+", multihost.client[0].distro)[0]) == 8:
             with pytest.raises(subprocess.CalledProcessError):
                 client.run_command(f"useradd -d /home2/tstusr2 -m tstusr")
         else:
