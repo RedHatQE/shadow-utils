@@ -72,7 +72,7 @@ class TestSubid(object):
             execute_cmd(multihost,
                         f"echo {subid_db} >> "
                         f"/etc/nsswitch.conf")
-        ssh1 = SSHClient(multihost.client[0].sys_hostname,
+        ssh1 = SSHClient(multihost.client[0].ip,
                          username=local_user,
                          password=test_password)
         (results1, results2, results3) = ssh1.exec_command('unshare -U bash')
